@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="ru" class="no-js">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>trashee — неофициальный клиент Яндекс Музыки для macOS, Windows и Linux</title>
+    <meta
+      name="description"
+      content="trashee — бесплатный плеер с открытым кодом для Яндекс Музыки: Моя волна, тексты песен, эквалайзер, медиаклавиши. macOS, Windows, Linux."
+    />
+    <meta name="theme-color" content="#050505" />
+    <meta name="color-scheme" content="dark" />
+
+    <!-- Link previews. Social networks need absolute URLs: put the real address of the site before assets/og.jpg. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="trashee — Яндекс Музыка в своём плеере" />
+    <meta
+      property="og:description"
+      content="Моя волна, тексты песен, эквалайзер и медиаклавиши. Бесплатно, с открытым кодом."
+    />
+    <meta property="og:image" content="https://trashee.ru/assets/og.jpg" />
+    <meta property="og:url" content="https://trashee.ru/" />
+    <link rel="canonical" href="https://trashee.ru/" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="assets/apple-touch-icon.png" />
+    <link rel="stylesheet" href="style.css" />
+    <script src="script.js" defer></script>
+  </head>
+
+  <body>
+    <!-- Shared logo, drawn once and used in the header, the footer and the hero. -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#ff6b8b" />
+          <stop offset="0.55" stop-color="#ff9a62" />
+          <stop offset="1" stop-color="#8f6bff" />
+        </linearGradient>
+        <symbol id="logo" viewBox="-20 -20 504 540">
+          <g fill="url(#bar)">
+            <rect class="bar" x="0" y="150" width="64" height="200" rx="32" />
+            <rect class="bar" x="100" y="70" width="64" height="360" rx="32" />
+            <rect class="bar" x="200" y="0" width="64" height="500" rx="32" />
+            <rect class="bar" x="300" y="100" width="64" height="300" rx="32" />
+            <rect class="bar" x="400" y="170" width="64" height="160" rx="32" />
+          </g>
+        </symbol>
+      </defs>
+    </svg>
+
+    <a class="skip" href="#features">К содержимому</a>
+
+    <header class="header" id="top">
+      <div class="container header-row">
+        <a class="brand" href="#top" aria-label="trashee, наверх">
+          <svg class="brand-mark" aria-hidden="true"><use href="#logo" /></svg>
+          <span>trashee</span>
+        </a>
+        <nav class="nav" aria-label="Разделы">
+          <a href="#features">Возможности</a>
+          <a href="#showcase">Скриншоты</a>
+          <a href="#download">Скачать</a>
+          <a href="#faq">Вопросы</a>
+        </nav>
+        <div class="header-actions">
+          <a
+            class="icon-link"
+            href="https://github.com/onemorefix1337/trashee"
+            aria-label="trashee на GitHub"
+            rel="noopener"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.15.08 1.76 1.19 1.76 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.78 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"
+              />
+            </svg>
+          </a>
+          <a class="btn small" href="#download">Скачать</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <!-- ───────── hero ───────── -->
+      <section class="hero">
+        <div class="orbs" aria-hidden="true"><span></span><span></span><span></span></div>
+
+        <div class="container hero-grid">
+          <div class="hero-copy">
+            <p class="eyebrow reveal">
+              <span class="dot"></span> Неофициальный клиент · бесплатно · открытый код
+            </p>
+            <h1 class="reveal" style="--d: 80ms">
+              Яндекс Музыка <br />в <span class="grad">своём плеере</span>
+            </h1>
+            <p class="lead reveal" style="--d: 160ms">
+              trashee — лёгкое приложение для macOS, Windows и Linux. Моя волна, синхронные
+              тексты песен, эквалайзер и медиаклавиши в одном окне.
+            </p>
+            <div class="cta reveal" style="--d: 240ms">
+              <a class="btn primary" id="hero-download" href="#download">
+                <span id="hero-download-label">Скачать</span>
+              </a>
+              <a class="btn ghost" href="https://github.com/onemorefix1337/trashee" rel="noopener">
+                Исходный код
+              </a>
+            </div>
+            <p class="meta reveal" style="--d: 320ms">
+              <span id="version">Версия 0.1.0</span> · MIT · без рекламы и слежки со стороны приложения
+            </p>
+          </div>
+
+          <div class="hero-visual reveal" style="--d: 200ms">
+            <div class="hero-tilt" id="tilt">
+              <figure class="window">
+                <div class="window-bar" aria-hidden="true">
+                  <i></i><i></i><i></i><span>trashee</span>
+                </div>
+                <img
+                  src="assets/shots/player.jpg"
+                  width="1800"
+                  height="1125"
+                  alt="Окно trashee: плеер с обложкой, очередью и визуализатором звука"
+                  fetchpriority="high"
+                />
+              </figure>
+              <span class="float f1">♪ Синхронный текст</span>
+              <span class="float f2">Эквалайзер на 10 полос</span>
+              <span class="float f3">⌘K — поиск</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="spectrum" id="spectrum" aria-hidden="true"></div>
+      </section>
+
+      <!-- ───────── ticker ───────── -->
+      <div class="ticker" aria-hidden="true">
+        <div class="ticker-track">
+          <span>Моя волна</span><span>Тексты песен</span><span>Эквалайзер</span
+          ><span>Медиаклавиши</span><span>Закреплённое</span><span>Поиск ⌘K</span
+          ><span>Похожие треки</span><span>Визуализатор</span><span>Моя волна</span
+          ><span>Тексты песен</span><span>Эквалайзер</span><span>Медиаклавиши</span
+          ><span>Закреплённое</span><span>Поиск ⌘K</span><span>Похожие треки</span
+          ><span>Визуализатор</span>
+        </div>
+      </div>
+
+      <!-- ───────── features ───────── -->
+      <section class="section" id="features">
+        <div class="container">
+          <header class="section-head reveal">
+            <p class="kicker">Возможности</p>
+            <h2>Всё, чего ждёшь от плеера. И немного больше.</h2>
+          </header>
+
+          <div class="features">
+            <article class="feature reveal">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M2 12c2-5 4-5 6 0s4 5 6 0 4-5 6 0M2 17c2-4 4-4 6 0s4 4 6 0 4-4 6 0" />
+                </svg>
+              </div>
+              <h3>Моя волна</h3>
+              <p>
+                Бесконечное радио по твоим вкусам. Лайки и «не нравится» учитываются, как в
+                официальном приложении.
+              </p>
+            </article>
+
+            <article class="feature reveal" style="--d: 70ms">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h10M4 18h14" /></svg>
+              </div>
+              <h3>Тексты песен</h3>
+              <p>
+                Строка подсвечивается вместе с песней и плавно прокручивается. Нажми на любую
+                строку, и трек перемотается к ней.
+              </p>
+            </article>
+
+            <article class="feature reveal" style="--d: 140ms">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+                </svg>
+              </div>
+              <h3>Эквалайзер и скорость</h3>
+              <p>
+                Десять полос с пресетами и скорость от ×0,75 до ×2 без смены тона. Меняется на
+                ходу, перезапускать ничего не нужно.
+              </p>
+            </article>
+
+            <article class="feature reveal">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m15 4 5 5-3 1-3.5 3.5.5 4-1.5 1.5-3-4.5L5 19.5M9 10.5l-1-3 1.5-1.5 4 .5" />
+                </svg>
+              </div>
+              <h3>Закреплённое из Яндекса</h3>
+              <p>
+                Свои и чужие плейлисты, альбомы и исполнители, которые ты закрепил в
+                официальном приложении, сразу появляются в боковой панели.
+              </p>
+            </article>
+
+            <article class="feature reveal" style="--d: 70ms">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M6 5v14l9-7zM19 5v14" />
+                </svg>
+              </div>
+              <h3>Медиаклавиши</h3>
+              <p>
+                Работает с клавишами на клавиатуре и плиткой плеера в системе: Now Playing на
+                macOS, SMTC на Windows, MPRIS на Linux.
+              </p>
+            </article>
+
+            <article class="feature reveal" style="--d: 140ms">
+              <div class="icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.6-.2-1-.6-1.4-.3-.3-.4-.7-.4-1.1 0-.8.7-1.5 1.5-1.5H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8Z"
+                  />
+                  <circle cx="7.5" cy="11" r="1" /><circle cx="11" cy="7" r="1" /><circle cx="16" cy="8" r="1" />
+                </svg>
+              </div>
+              <h3>Цвета по обложке</h3>
+              <p>
+                Фон и акценты подстраиваются под обложку, а внизу живёт визуализатор настоящего
+                звука. Всё это можно приглушить или выключить в настройках.
+              </p>
+            </article>
+          </div>
+
+          <ul class="pills reveal" aria-label="Ещё">
+            <li>Поиск ⌘K</li>
+            <li>Похожие треки</li>
+            <li>«Не нравится» с отменой</li>
+            <li>Вернуть прежнюю очередь</li>
+            <li>Страницы альбомов и исполнителей</li>
+            <li>Горячие клавиши</li>
+            <li>Свёрнутая боковая панель</li>
+            <li>Открытый код, MIT</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- ───────── showcase ───────── -->
+      <section class="section showcase-section" id="showcase">
+        <div class="container">
+          <header class="section-head reveal">
+            <p class="kicker">Как выглядит</p>
+            <h2>Тёмный, быстрый и живой.</h2>
+          </header>
+
+          <div class="showcase reveal" id="showcase-root">
+            <div class="tabs" role="tablist" aria-label="Скриншоты">
+              <button class="tab active" role="tab" aria-selected="true" data-i="0">
+                <strong>Плеер</strong>
+                <span>Обложка, очередь и спектр звука. Цвета берутся из обложки.</span>
+              </button>
+              <button class="tab" role="tab" aria-selected="false" data-i="1">
+                <strong>Тексты</strong>
+                <span>Синхронные строки, перемотка по клику.</span>
+              </button>
+              <button class="tab" role="tab" aria-selected="false" data-i="2">
+                <strong>Исполнители</strong>
+                <span>Популярные треки и все альбомы. Закрепляется одной кнопкой.</span>
+              </button>
+              <button class="tab" role="tab" aria-selected="false" data-i="3">
+                <strong>Плейлисты</strong>
+                <span>Свои и сохранённые у других, закреплённые отмечены.</span>
+              </button>
+              <button class="tab" role="tab" aria-selected="false" data-i="4">
+                <strong>Настройки</strong>
+                <span>Эквалайзер, скорость, качество и уровень анимаций.</span>
+              </button>
+            </div>
+
+            <figure class="window stage">
+              <div class="window-bar" aria-hidden="true">
+                <i></i><i></i><i></i><span>trashee</span>
+              </div>
+              <div class="stage-frames">
+                <img class="frame active" src="assets/shots/player.jpg" width="1800" height="1125" alt="Плеер trashee" />
+                <img class="frame" src="assets/shots/lyrics.jpg" width="1800" height="1125" alt="Синхронный текст песни" loading="lazy" />
+                <img class="frame" src="assets/shots/artist-albums.jpg" width="1800" height="1125" alt="Страница исполнителя с альбомами" loading="lazy" />
+                <img class="frame" src="assets/shots/playlists.jpg" width="1800" height="1125" alt="Коллекция плейлистов" loading="lazy" />
+                <img class="frame" src="assets/shots/settings.jpg" width="1800" height="1125" alt="Настройки: эквалайзер" loading="lazy" />
+              </div>
+            </figure>
+          </div>
+          <p class="fine reveal">
+            На скриншотах вымышленные исполнители и обложки: настоящие чужие обложки на сайте не показаны.
+          </p>
+        </div>
+      </section>
+
+      <!-- ───────── download ───────── -->
+      <section class="section" id="download">
+        <div class="container">
+          <header class="section-head reveal">
+            <p class="kicker">Скачать</p>
+            <h2>Выбери свою систему.</h2>
+            <p class="sub" id="release-line">
+              Последняя версия на GitHub. Бесплатно, регистрация не нужна.
+            </p>
+          </header>
+
+          <div class="downloads">
+            <article class="dl reveal" data-os="mac">
+              <span class="badge">Для вашей системы</span>
+              <div class="dl-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="12" rx="2" /><path d="M2 20h20" />
+                </svg>
+              </div>
+              <h3>macOS</h3>
+              <p>Apple Silicon и Intel</p>
+              <a class="btn primary block" href="https://github.com/onemorefix1337/trashee/releases/latest" data-asset="macArm">
+                <span>Apple Silicon</span><small>.dmg</small>
+              </a>
+              <a class="btn ghost block" href="https://github.com/onemorefix1337/trashee/releases/latest" data-asset="macX64">
+                <span>Intel</span><small>.dmg</small>
+              </a>
+              <p class="note">M1, M2, M3 и новее — «Apple Silicon». Старые Mac — «Intel».</p>
+            </article>
+
+            <article class="dl reveal" style="--d: 80ms" data-os="win">
+              <span class="badge">Для вашей системы</span>
+              <div class="dl-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="3" width="8" height="8" rx="1" /><rect x="13" y="3" width="8" height="8" rx="1" />
+                  <rect x="3" y="13" width="8" height="8" rx="1" /><rect x="13" y="13" width="8" height="8" rx="1" />
+                </svg>
+              </div>
+              <h3>Windows</h3>
+              <p>Windows 10 и 11, 64 бита</p>
+              <a class="btn primary block" href="https://github.com/onemorefix1337/trashee/releases/latest" data-asset="win">
+                <span>Установщик</span><small>.exe</small>
+              </a>
+              <p class="note">Двойной щелчок по файлу, дальше установщик всё сделает сам.</p>
+            </article>
+
+            <article class="dl reveal" style="--d: 160ms" data-os="linux">
+              <span class="badge">Для вашей системы</span>
+              <div class="dl-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <rect x="3" y="4" width="18" height="16" rx="2" /><path d="m7 9 3 3-3 3M12 15h5" />
+                </svg>
+              </div>
+              <h3>Linux</h3>
+              <p>x86_64</p>
+              <a class="btn primary block" href="https://github.com/onemorefix1337/trashee/releases/latest" data-asset="appImage">
+                <span>AppImage</span><small>один файл</small>
+              </a>
+              <a class="btn ghost block" href="https://github.com/onemorefix1337/trashee/releases/latest" data-asset="tarGz">
+                <span>Архив</span><small>.tar.gz</small>
+              </a>
+              <p class="note">Для AppImage: <code>chmod +x trashee-*.AppImage</code> и запуск.</p>
+            </article>
+          </div>
+
+          <div class="first-run reveal">
+            <h3>Система ругается при первом запуске?</h3>
+            <p>
+              Это нормально: установщики пока не подписаны (подпись стоит денег), поэтому macOS и
+              Windows осторожничают с неизвестными разработчиками.
+            </p>
+            <div class="first-run-grid">
+              <div>
+                <strong>macOS</strong>
+                <p>
+                  Открой приложение правым кликом и выбери «Открыть». Или выполни в терминале:
+                  <code>xattr -cr /Applications/trashee.app</code>
+                </p>
+              </div>
+              <div>
+                <strong>Windows</strong>
+                <p>
+                  В окне SmartScreen нажми «Подробнее», затем «Выполнить в любом случае».
+                </p>
+              </div>
+              <div>
+                <strong>Проверка файла</strong>
+                <p>
+                  Контрольные суммы лежат в
+                  <a href="https://github.com/onemorefix1337/trashee/releases/latest" data-asset="sums" rel="noopener">SHA256SUMS.txt</a>
+                  рядом с установщиками.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── faq ───────── -->
+      <section class="section" id="faq">
+        <div class="container narrow">
+          <header class="section-head reveal">
+            <p class="kicker">Вопросы</p>
+            <h2>Коротко о главном.</h2>
+          </header>
+
+          <div class="faq reveal">
+            <details>
+              <summary>Это официальное приложение Яндекса?</summary>
+              <p>
+                Нет. trashee делает независимый разработчик, и Яндекс к нему не причастен.
+                Приложение использует закрытое API сервиса, как и другие сторонние клиенты.
+                Яндекс может изменить его без предупреждения, тогда что-то перестанет
+                работать до обновления trashee.
+              </p>
+            </details>
+            <details>
+              <summary>Безопасно ли входить?</summary>
+              <p>
+                Пароль ты вводишь только на странице Яндекса: trashee показывает код, ты
+                вводишь его на сайте Яндекса и подтверждаешь вход. Приложение получает токен
+                доступа и хранит его зашифрованным средствами системы (где она это
+                поддерживает). Исходный код открыт, его можно прочитать.
+              </p>
+            </details>
+            <details>
+              <summary>Нужна ли подписка Яндекс Плюс?</summary>
+              <p>
+                trashee отдаёт то, что Яндекс позволяет твоему аккаунту. Качество «Без потерь»
+                может требовать Плюс; без подписки Яндекс отдаёт лучшее из доступного.
+              </p>
+            </details>
+            <details>
+              <summary>Есть ли скачивание треков и офлайн-режим?</summary>
+              <p>
+                Пока нет. Первая версия умеет слушать: Моя волна, поиск, коллекция, плейлисты,
+                альбомы, исполнители, тексты и эквалайзер.
+              </p>
+            </details>
+            <details>
+              <summary>Что делать, если что-то сломалось?</summary>
+              <p>
+                Напиши об этом в
+                <a href="https://github.com/onemorefix1337/trashee/issues" rel="noopener">разделе Issues на GitHub</a>:
+                укажи систему, версию и что именно произошло.
+              </p>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <!-- ───────── final call ───────── -->
+      <section class="final">
+        <div class="orbs small" aria-hidden="true"><span></span><span></span></div>
+        <div class="container reveal">
+          <svg class="final-mark" aria-hidden="true"><use href="#logo" /></svg>
+          <h2>Включи свою музыку.</h2>
+          <a class="btn primary" href="#download">Скачать trashee</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container footer-row">
+        <a class="brand" href="#top" aria-label="trashee, наверх">
+          <svg class="brand-mark" aria-hidden="true"><use href="#logo" /></svg>
+          <span>trashee</span>
+        </a>
+        <p>
+          Неофициальный клиент. Не связан с Яндексом, «Яндекс Музыка» принадлежит их владельцам.
+        </p>
+        <nav aria-label="Ссылки">
+          <a href="https://github.com/onemorefix1337/trashee" rel="noopener">GitHub</a>
+          <a href="https://github.com/onemorefix1337/trashee/releases" rel="noopener">Релизы</a>
+          <a href="https://github.com/onemorefix1337/trashee/blob/main/LICENSE" rel="noopener">MIT</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
