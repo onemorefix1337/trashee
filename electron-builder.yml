@@ -1,0 +1,52 @@
+appId: app.trashee
+productName: trashee
+copyright: Неофициальный клиент Яндекс Музыки
+directories:
+  buildResources: build
+  output: dist
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!scripts/*'
+  - '!.github/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - resources/**
+mac:
+  category: public.app-category.music
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+  # Ad-hoc signature: valid for Apple Silicon without a paid developer account. Put a real
+  # "Developer ID Application" identity here (and enable notarization) to remove the Gatekeeper warning.
+  identity: '-'
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: false
+win:
+  executableName: trashee
+  target:
+    - target: nsis
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-win-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+linux:
+  category: Audio
+  # Lets desktop environments match the running window to the launcher entry.
+  syncDesktopName: true
+  target:
+    - AppImage
+    - tar.gz
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+# Releases are uploaded by the release workflow, never by electron-builder itself.
+publish: null

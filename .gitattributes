@@ -1,0 +1,5 @@
+# Keep line endings the same on every OS, or Prettier fails on Windows checkouts.
+* text=auto eol=lf
+*.png binary
+*.icns binary
+*.ico binary

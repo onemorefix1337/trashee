@@ -1,0 +1,132 @@
+export interface Artist {
+  id: number
+  name: string
+}
+
+export interface Album {
+  id: number
+  title: string
+  year?: number
+}
+
+export interface Track {
+  id: string
+  title: string
+  version?: string
+  durationMs: number
+  artists: Artist[]
+  albums: Album[]
+  coverUri?: string
+  available: boolean
+  explicit: boolean
+}
+
+export type Quality = 'lossless' | 'hq' | 'nq'
+export type Transport = 'raw' | 'encraw'
+
+export interface FileInfo {
+  trackId: string
+  quality: string
+  codec: string
+  bitrate: number
+  transport: Transport
+  url: string
+  key?: string
+}
+
+export interface WaveBatch {
+  sessionId: string
+  batchId: string
+  tracks: Track[]
+}
+
+export interface Account {
+  uid: number
+  login: string
+  hasPlus: boolean
+}
+
+/** Outcome of restoring the saved session at startup. */
+export type Restore =
+  | { status: 'ok'; account: Account }
+  | { status: 'login' }
+  /** A token is saved, but Yandex could not be reached; it is kept for the next try. */
+  | { status: 'offline' }
+
+export interface DeviceCode {
+  deviceCode: string
+  userCode: string
+  verificationUrl: string
+  interval: number
+  expiresIn: number
+}
+
+/** Something with a list of tracks that can be opened, played and pinned. */
+export type CollectionRef =
+  | { type: 'playlist'; uid?: number; kind?: number; uuid?: string }
+  | { type: 'album'; id: number }
+  | { type: 'artist'; id: number }
+
+/** An album as listed on an artist page. */
+export interface AlbumInfo {
+  id: number
+  title: string
+  year?: number
+  coverUri?: string
+  trackCount: number
+  /** Release kind as Yandex names it: "single", "compilation", and so on; absent for a plain album. */
+  kind?: string
+}
+
+export interface Collection {
+  ref: CollectionRef
+  title: string
+  /** Owner of a playlist, artists of an album, "Исполнитель" for an artist. */
+  subtitle: string
+  coverUri?: string
+  trackCount: number
+  tracks: Track[]
+  /** Who made it, as links: the artists of an album. Empty for playlists and artist pages. */
+  artists: Artist[]
+  /** The artist's releases, newest first. Empty everywhere but on an artist page. */
+  albums: AlbumInfo[]
+}
+
+/** A playlist as listed in the collection (own or saved from other people). */
+export interface PlaylistInfo {
+  ref: CollectionRef
+  key: string
+  title: string
+  owner: string
+  mine: boolean
+  coverUri?: string
+  trackCount: number
+}
+
+/** An item pinned to the sidebar. A wave has a seed instead of a ref. */
+export interface Pin {
+  key: string
+  type: 'playlist' | 'album' | 'artist' | 'wave'
+  title: string
+  subtitle: string
+  coverUri?: string
+  ref?: CollectionRef
+  seed?: string
+}
+
+/** What the radio is told about playback; "like" and "dislike" only tune recommendations. */
+export type WaveEvent =
+  'radioStarted' | 'trackStarted' | 'trackFinished' | 'skip' | 'like' | 'dislike'
+
+export interface LyricLine {
+  /** Seconds from the start of the track. */
+  time: number
+  /** Empty for an instrumental gap. */
+  text: string
+}
+
+/** Either synced lines, or plain text, or neither when the track has no lyrics. */
+export interface Lyrics {
+  synced: LyricLine[] | null
+  text: string | null
+}

@@ -1,0 +1,60 @@
+name: Release
+
+# Push a tag like v0.1.0 to build installers for macOS, Windows and Linux and attach them to a draft release.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            flags: --mac
+          - os: windows-latest
+            flags: --win
+          - os: ubuntu-latest
+            flags: --linux
+    runs-on: ${{ matrix.os }}
+    env:
+      # No signing certificates are configured, so do not go looking for them.
+      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - run: npx electron-builder ${{ matrix.flags }} --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trashee-${{ matrix.os }}
+          if-no-files-found: error
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.tar.gz
+
+      - uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          draft: true
+          files: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.tar.gz
