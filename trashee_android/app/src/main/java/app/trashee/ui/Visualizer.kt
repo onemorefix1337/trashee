@@ -17,10 +17,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
 import app.trashee.player.SPECTRUM_BANDS
 
-/** How fast a bar falls and how fast it rises (a share of the way to the new level per update). */
-// 0.88 per refresh of a 120 Hz screen, the same fall per second at the 60 updates a second the bars get now.
-private const val RELEASE = 0.78f
-private const val ATTACK = 0.7f
+/**
+ * How fast a bar rises and falls: the share of the way to the new level (rising) or of its height (falling) per update, of which
+ * there are about 60 a second. The measurements are smoothed once more before this, so the bars calm down without lagging behind the beat.
+ */
+private const val RELEASE = 0.84f
+private const val ATTACK = 0.5f
 private const val SETTLED = 0.01f
 
 /**

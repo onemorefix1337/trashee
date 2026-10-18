@@ -21,6 +21,12 @@ private const val HIGH_HZ = 15_000.0
 private const val FLOOR_DB = 60f
 
 /**
+ * A share of the previous measurement kept in the next one, per measurement (about 86 a second). One window of sound
+ * fluctuates a lot by itself, even in a steady tone; without this the bars shimmer. The browser's analyser does the same.
+ */
+private const val SMOOTHING = 0.72f
+
+/**
  * Passes the sound through untouched and measures it on the way: log-spaced bands, 0..1, for the visualizer.
  * Needs no permission, unlike the system Visualizer, because it only looks at what this player plays.
  */
@@ -34,6 +40,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
     private var clock = StreamClock(44_100)
     /** Samples measured since the stream started (or was cut): where in the stream the measurement is. */
     private var streamFrames = 0L
+    private val smoothed = FloatArray(SPECTRUM_BANDS)
 
     /** How long the sound waits in the audio output before it is heard; set once the output is known. */
     @Volatile
@@ -107,7 +114,9 @@ class SpectrumProcessor : BaseAudioProcessor() {
                 if (magnitude > peak) peak = magnitude
             }
             val db = 20f * log10(peak + 1e-5f)
-            result[band] = ((db + FLOOR_DB) / FLOOR_DB).coerceIn(0f, 1f)
+            val level = ((db + FLOOR_DB) / FLOOR_DB).coerceIn(0f, 1f)
+            smoothed[band] = smoothed[band] * SMOOTHING + level * (1f - SMOOTHING)
+            result[band] = smoothed[band]
         }
         bands = result
         // The window is centered half its length back: that is where the sound it measured is.
@@ -162,6 +171,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
         history.clear()
         clock.reset()
         streamFrames = 0
+        smoothed.fill(0f)
     }
 
     override fun onReset() {
