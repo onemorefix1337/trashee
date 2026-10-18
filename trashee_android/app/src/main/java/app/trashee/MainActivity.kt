@@ -3,6 +3,7 @@ package app.trashee
 import android.Manifest
 import android.content.ComponentName
 import android.content.Intent
+import kotlinx.coroutines.launch
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -43,6 +44,10 @@ class MainActivity : ComponentActivity() {
             CompositionLocalProvider(LocalApp provides application as TrasheeApp) { AppRoot() }
         }
         takeLink(intent)
+        // Carry on where the app was closed. A link that opened the app is what the user came for, not the old music.
+        val app = application as TrasheeApp
+        val launcher = intent?.action == null || intent?.action == Intent.ACTION_MAIN
+        app.scope.launch { app.resumeLastSession(autoplayAllowed = launcher) }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -70,6 +75,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
+        (application as TrasheeApp).engine.flush()
         controller?.let { MediaController.releaseFuture(it) }
         controller = null
         super.onStop()

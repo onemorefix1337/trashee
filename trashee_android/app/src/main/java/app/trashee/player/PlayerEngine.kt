@@ -18,6 +18,7 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ShuffleOrder
 import android.os.SystemClock
 import app.trashee.BuildConfig
 import app.trashee.data.Repo
@@ -27,6 +28,7 @@ import app.trashee.data.Track
 import app.trashee.data.WaveEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,10 +37,13 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.random.Random
 
 private const val MAX_CONSECUTIVE_ERRORS = 3
 private const val WAVE_REFILL_AT = 2
 private const val POSITION_TICK_MS = 250L
+private const val SAVE_EVERY_TICKS = 16
 private const val RESTART_THRESHOLD_MS = 3000L
 private const val PREFETCH_LAST_MS = 45_000L
 // The audio buffer is nearly, not quite, full while playing; and an upper bound for odd devices.
@@ -126,6 +131,13 @@ class PlayerEngine(
     private var lastPositionMs = 0L
     private var prefetchedFor: String? = null
 
+    private val memory = PlaybackMemory(app)
+    private var saveTick = 0
+
+    /** Queue positions already played in this pass of the shuffle: they wait until the others have had their turn. */
+    private val heard = HashSet<Int>()
+    private val random = Random.Default
+
     init {
         // The sound waits in the audio output's buffer before it is heard: the bars are shown that much later.
         player.addAnalyticsListener(object : AnalyticsListener {
@@ -141,6 +153,14 @@ class PlayerEngine(
                 prefetchedFor = null
                 _ui.update { it.copy(index = index, error = null, durationMs = it.queue.getOrNull(index)?.durationMs ?: 0) }
                 _position.value = 0
+                heard.add(index)
+                if (player.shuffleModeEnabled && player.repeatMode == Player.REPEAT_MODE_ALL && heard.size >= player.mediaItemCount) {
+                    // The pass is over. The next one is a new random order, and it starts with something else than this track.
+                    heard.clear()
+                    heard.add(index)
+                    applyShuffle()
+                }
+                rememberPlace()
                 val track = _ui.value.track
                 val previous = lastTrack
                 lastTrack = track
@@ -176,6 +196,7 @@ class PlayerEngine(
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 if (isPlaying) consecutiveErrors = 0
                 _ui.update { it.copy(playing = isPlaying) }
+                if (!isPlaying) rememberPlace()
             }
 
             override fun onPlaybackStateChanged(state: Int) {
@@ -187,10 +208,17 @@ class PlayerEngine(
 
             override fun onShuffleModeEnabledChanged(enabled: Boolean) {
                 _ui.update { it.copy(shuffle = enabled) }
+                heard.clear()
+                if (enabled) {
+                    heard.add(player.currentMediaItemIndex)
+                    applyShuffle()
+                }
+                rememberPlace()
             }
 
             override fun onRepeatModeChanged(mode: Int) {
                 _ui.update { it.copy(repeat = mode) }
+                rememberPlace()
             }
 
             override fun onPlayerError(error: PlaybackException) {
@@ -222,6 +250,7 @@ class PlayerEngine(
                     lastPositionMs = player.currentPosition
                     _position.value = lastPositionMs
                     maybePrefetch()
+                    if (++saveTick % SAVE_EVERY_TICKS == 0) rememberPlace()
                 }
             }
         }
@@ -281,6 +310,7 @@ class PlayerEngine(
                 if (fresh.isNotEmpty()) {
                     _ui.update { it.copy(queue = it.queue + fresh) }
                     player.addMediaItems(fresh.map(::mediaItem))
+                    rememberQueue()
                 }
             } catch (error: CancellationException) {
                 throw error
@@ -295,7 +325,7 @@ class PlayerEngine(
     /* ---------- starting playback ---------- */
 
     /** [startPositionMs] and [autoplay] are for a session taken over from the computer: the same second, playing or paused. */
-    fun playTracks(tracks: List<Track>, startIndex: Int = 0, startPositionMs: Long = 0, autoplay: Boolean = true) {
+    fun playTracks(tracks: List<Track>, startIndex: Int = 0, startPositionMs: Long = 0, autoplay: Boolean = true, prepare: Boolean = true) {
         val playable = tracks.filter { it.available }
         val start = playable.indexOf(tracks.getOrNull(startIndex))
         if (playable.isEmpty() || start < 0) return
@@ -305,8 +335,52 @@ class PlayerEngine(
         _ui.update { it.copy(queue = playable, index = start, wave = false, error = null, durationMs = playable[start].durationMs) }
         player.setMediaItems(playable.map(::mediaItem), start, startPositionMs)
         player.shuffleModeEnabled = _ui.value.shuffle
-        player.prepare()
+        heard.clear()
+        heard.add(start)
+        applyShuffle()
+        _position.value = startPositionMs
+        if (prepare) player.prepare()
         if (autoplay) player.play() else player.pause()
+        rememberQueue()
+    }
+
+    /**
+     * Puts back what was playing when the app was last closed: the same track and second, and the shuffle and repeat
+     * as they were. Does nothing when something is queued already or there is nothing to put back.
+     */
+    suspend fun restore(autoplay: Boolean): Boolean {
+        if (_ui.value.queue.isNotEmpty()) return false
+        val saved = withContext(Dispatchers.IO) { memory.load() } ?: return false
+        if (_ui.value.queue.isNotEmpty()) return false
+        player.shuffleModeEnabled = saved.shuffle
+        player.repeatMode = saved.repeat
+        // Paused, the player is not even prepared: nothing is downloaded until the music is asked for.
+        playTracks(saved.tracks, saved.index, saved.positionMs, autoplay = autoplay, prepare = autoplay)
+        return _ui.value.queue.isNotEmpty()
+    }
+
+    /** Writes down where playback is right now, for when the app is about to go away. */
+    fun flush() = rememberPlace()
+
+    private fun rememberQueue() {
+        val ui = _ui.value
+        if (ui.queue.isEmpty()) return
+        memory.saveQueue(ui.queue, ui.index) { write -> scope.launch(Dispatchers.IO) { runCatching { write() } } }
+        rememberPlace()
+    }
+
+    private fun rememberPlace() {
+        val ui = _ui.value
+        if (ui.index < 0 || ui.queue.isEmpty()) return
+        memory.savePlace(ui.index, player.currentPosition, player.shuffleModeEnabled, player.repeatMode)
+    }
+
+    /** Plays the rest of the queue in a fresh random order that begins with the current track, and then [front]. */
+    private fun applyShuffle(front: List<Int> = emptyList()) {
+        val count = player.mediaItemCount
+        if (!player.shuffleModeEnabled || count < 2) return
+        val order = shuffleOrder(count, player.currentMediaItemIndex, front, heard, random)
+        player.setShuffleOrder(ShuffleOrder.DefaultShuffleOrder(order, random.nextLong()))
     }
 
     fun startWave(seed: String? = null) {
@@ -326,6 +400,7 @@ class PlayerEngine(
                 player.setMediaItems(tracks.map(::mediaItem), 0, 0)
                 player.prepare()
                 player.play()
+                rememberQueue()
             } catch (error: CancellationException) {
                 throw error
             } catch (_: Exception) {
@@ -351,6 +426,14 @@ class PlayerEngine(
         val at = state.index + 1
         _ui.update { it.copy(queue = it.queue.take(at) + fresh + it.queue.drop(at)) }
         player.addMediaItems(at, fresh.map(::mediaItem))
+        if (player.shuffleModeEnabled) {
+            // Positions after the new ones moved along; what was asked to play next plays next, shuffled or not.
+            val moved = heard.map { if (it >= at) it + fresh.size else it }
+            heard.clear()
+            heard.addAll(moved)
+            applyShuffle(front = (at until at + fresh.size).toList())
+        }
+        rememberQueue()
         Toasts.say("Добавлено в очередь: ${fresh.size}")
     }
 
@@ -393,6 +476,7 @@ class PlayerEngine(
 
     fun jumpTo(index: Int) {
         if (index in 0 until player.mediaItemCount) {
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
             player.seekTo(index, 0)
             player.play()
         }
@@ -487,6 +571,8 @@ class PlayerEngine(
         lastTrack = null
         player.stop()
         player.clearMediaItems()
+        heard.clear()
+        memory.forget()
         _ui.value = PlayerUi(shuffle = player.shuffleModeEnabled, repeat = player.repeatMode)
         _position.value = 0
     }

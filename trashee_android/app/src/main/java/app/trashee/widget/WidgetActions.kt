@@ -62,7 +62,7 @@ class ToggleAction : ActionCallback {
             if (engine.ui.value.track != null) {
                 engine.toggle()
             } else if (signedIn(app)) {
-                engine.startWave()
+                if (!engine.restore(autoplay = true)) engine.startWave()
             } else {
                 openApp(context)
             }

@@ -3,6 +3,8 @@ package app.trashee
 import android.app.Application
 import app.trashee.data.OfflineLibrary
 import app.trashee.data.Repo
+import app.trashee.data.Session
+import app.trashee.player.headphonesConnected
 import app.trashee.player.Caches
 import app.trashee.update.Updater
 import app.trashee.widget.keepWidgetCurrent
@@ -10,6 +12,8 @@ import app.trashee.player.PlayerEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.intercept.Interceptor
@@ -57,6 +61,19 @@ class TrasheeApp : Application() {
         updater.startBackgroundChecks()
         repo.restore()
     }
+}
+
+private const val RESUME_LOGIN_WAIT_MS = 15_000L
+
+/**
+ * Continues where the app was closed: the same track and second. With headphones connected (and the switch on)
+ * it plays at once; otherwise the mini player is there, paused, and a tap carries on.
+ */
+suspend fun TrasheeApp.resumeLastSession(autoplayAllowed: Boolean) {
+    if (engine.ui.value.queue.isNotEmpty()) return
+    val ready = withTimeoutOrNull(RESUME_LOGIN_WAIT_MS) { repo.session.first { it !is Session.Restoring } } is Session.Ready
+    if (!ready) return
+    engine.restore(autoplay = autoplayAllowed && repo.resumeWithHeadphones.value && headphonesConnected(this))
 }
 
 /** Looks a cover up among the saved ones before the image loader goes to the network. */

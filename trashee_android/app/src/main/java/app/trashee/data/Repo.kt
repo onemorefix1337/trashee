@@ -70,6 +70,10 @@ class Repo(context: Context, private val scope: CoroutineScope) {
     /** Whether the player screen draws the bars (and the player measures the sound for them at all). */
     val visualizerOn: StateFlow<Boolean> = _visualizerOn.asStateFlow()
 
+    private val _resumeWithHeadphones = MutableStateFlow(prefs.getBoolean("resumeWithHeadphones", true))
+    /** Opening the app with headphones connected carries on playing where it was left, without a tap. */
+    val resumeWithHeadphones: StateFlow<Boolean> = _resumeWithHeadphones.asStateFlow()
+
     private val _offlineMode = MutableStateFlow(false)
     /** Signed in, but Yandex cannot be reached: only what was saved for offline listening works. */
     val offlineMode: StateFlow<Boolean> = _offlineMode.asStateFlow()
@@ -112,6 +116,11 @@ class Repo(context: Context, private val scope: CoroutineScope) {
     fun setVisualizerOn(value: Boolean) {
         _visualizerOn.value = value
         prefs.edit().putBoolean("visualizerOn", value).apply()
+    }
+
+    fun setResumeWithHeadphones(value: Boolean) {
+        _resumeWithHeadphones.value = value
+        prefs.edit().putBoolean("resumeWithHeadphones", value).apply()
     }
 
     fun setPrefetchNext(value: Boolean) {

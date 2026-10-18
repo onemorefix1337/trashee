@@ -177,6 +177,7 @@ fun SettingsScreen(padding: PaddingValues) {
                 )
             }
         }
+        item { ResumeCard() }
         item { EqualizerCard() }
         item { VisualizerCard() }
         item { SyncCard() }
