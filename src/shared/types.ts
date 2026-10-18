@@ -48,7 +48,8 @@ export interface Account {
 
 /** Outcome of restoring the saved session at startup. */
 export type Restore =
-  | { status: 'ok'; account: Account }
+  /** `offline` is set when Yandex could not be reached but saved collections can still be played. */
+  | { status: 'ok'; account: Account; offline?: boolean }
   | { status: 'login' }
   /** A token is saved, but Yandex could not be reached; it is kept for the next try. */
   | { status: 'offline' }
@@ -148,4 +149,32 @@ export interface LyricsQuery {
   artists: string[]
   album?: string
   durationSec: number
+}
+
+/** How far saving a collection for offline listening has got. */
+export interface OfflineProgress {
+  status: 'saving' | 'saved'
+  done: number
+  total: number
+  /** Tracks that could not be fetched; the rest of the collection is saved anyway. */
+  failed: number
+}
+
+/** Saved and being-saved collections by key ("playlist:1:2", "album:3", "liked"). */
+export type OfflineState = Record<string, OfflineProgress>
+
+export interface SavedInfo {
+  key: string
+  title: string
+  subtitle: string
+  trackCount: number
+  savedAt: number
+}
+
+/** What the caches take on disk, and which collections were saved on purpose. */
+export interface CacheInfo {
+  stream: number
+  offline: number
+  offlineTracks: number
+  collections: SavedInfo[]
 }

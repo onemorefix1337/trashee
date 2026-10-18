@@ -8,6 +8,7 @@ import { currentTrack, playTracks, usePlayer } from '../store/player'
 import ArtistLinks from './ArtistLinks'
 import CoverCard from './CoverCard'
 import { PinIcon, PlayIcon, PlaylistIcon, ShuffleIcon } from './Icons'
+import SaveOfflineButton from './SaveOfflineButton'
 import Skeleton from './Skeleton'
 import TrackList from './TrackList'
 
@@ -149,6 +150,7 @@ export default function CollectionPage({
               >
                 <ShuffleIcon size={16} /> Вперемешку
               </motion.button>
+              <SaveOfflineButton target={collectionRef} title={data.title} />
               {pinnable && (
                 <motion.button
                   className={`chip${pinned ? ' on' : ''}`}

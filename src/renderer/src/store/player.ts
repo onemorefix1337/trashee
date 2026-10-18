@@ -2,6 +2,7 @@ import { useSyncExternalStore } from 'react'
 import type { Track, WaveEvent } from '../../../shared/types'
 import { EQ_BANDS } from '../../../shared/settings'
 import { artistNames, publicCoverUrl } from '../lib/cover'
+import { getSettings } from './settings'
 import { showToast } from './toast'
 
 export type Repeat = 'off' | 'all' | 'one'
@@ -20,6 +21,9 @@ export interface PlayerState {
   likedIds: Set<string>
   error: string | null
 }
+
+// The next track is fetched in the background from the middle of the current one at the latest.
+const PREFETCH_LAST_SECONDS = 45
 
 const MAX_CONSECUTIVE_ERRORS = 3
 const WAVE_REFILL_AT = 2
@@ -203,9 +207,26 @@ if ('mediaSession' in navigator) {
 
 /* ---------- playback ---------- */
 
+let prefetchedFor: string | null = null
+
+/** Asks the main process to download the next track while this one plays, so it starts without waiting. */
+function maybePrefetch(): void {
+  // A shuffled queue picks its next track at random only when it is needed, so there is nothing to fetch.
+  if (!getSettings().prefetchNext || (state.shuffle && !state.wave)) return
+  const upcoming = state.queue[state.index + 1]
+  if (!upcoming || !upcoming.available || upcoming.id === prefetchedFor) return
+  if (!Number.isFinite(audio.duration) || audio.duration <= 0) return
+  const left = audio.duration - audio.currentTime
+  if (left <= PREFETCH_LAST_SECONDS || audio.currentTime >= audio.duration / 2) {
+    prefetchedFor = upcoming.id
+    void window.api.prefetch(upcoming.id).catch(() => undefined)
+  }
+}
+
 function loadCurrent(): void {
   const track = currentTrack(state)
   if (!track) return
+  prefetchedFor = null
   set({ position: 0, duration: track.durationMs / 1000, error: null })
   audio.src = `trashee-media://track/${track.id}`
   getAnalyser()
@@ -496,7 +517,10 @@ audio.addEventListener('pause', () => {
 audio.addEventListener('durationchange', () => {
   if (Number.isFinite(audio.duration)) set({ duration: audio.duration })
 })
-audio.addEventListener('timeupdate', () => set({ position: audio.currentTime }))
+audio.addEventListener('timeupdate', () => {
+  set({ position: audio.currentTime })
+  maybePrefetch()
+})
 audio.addEventListener('error', handleFailure)
 audio.addEventListener('ended', () => {
   waveFeedback('trackFinished', currentTrack(state), audio.duration)

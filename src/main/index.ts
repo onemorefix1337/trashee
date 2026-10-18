@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow, protocol } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
-import { registerIpc, streamer } from './ipc'
+import { offlineCover, registerIpc, streamer } from './ipc'
 import { destroyMini, registerMini } from './mini'
 import { registerUpdater } from './updater'
 import { MIN_SIZE, loadWindowBounds, trackWindowBounds } from './window-state'
@@ -105,9 +105,11 @@ app.whenReady().then(() => {
   if (process.platform === 'darwin') app.dock?.setIcon(icon)
 
   protocol.handle(SCHEME, (request) =>
-    new URL(request.url).hostname === 'cover' ? coverResponse(request) : streamer.handle(request)
+    new URL(request.url).hostname === 'cover'
+      ? coverResponse(request, offlineCover)
+      : streamer.handle(request)
   )
-  registerIpc()
+  registerIpc(() => mainWindow)
   registerMini(() => mainWindow)
   registerUpdater(() => mainWindow)
 

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import type { Track } from '../../../shared/types'
 import { artistNames } from '../lib/cover'
 import { openCollection, openSimilar } from '../store/nav'
+import { downloadTrackFile } from '../store/offline'
 import { enqueueNext } from '../store/player'
 
 export interface MenuPoint {
@@ -22,7 +23,10 @@ interface Item {
 
 function itemsFor(track: Track): Item[] {
   const album = track.albums.find((candidate) => candidate.id)
-  const items: Item[] = [{ label: 'Играть дальше', run: () => enqueueNext([track]) }]
+  const items: Item[] = [
+    { label: 'Играть дальше', run: () => enqueueNext([track]) },
+    { label: 'Скачать файл', run: () => void downloadTrackFile(track) }
+  ]
   if (album) {
     items.push({
       label: `Альбом: ${album.title}`,

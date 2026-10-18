@@ -119,6 +119,16 @@ export const MiniPlayerIcon = (p: IconProps): JSX.Element => (
     <rect x="12" y="11.5" width="6" height="4.5" rx="1.2" fill="currentColor" stroke="none" />
   </Svg>
 )
+export const DownloadIcon = (p: IconProps): JSX.Element => (
+  <Svg {...p}>
+    <path d="M12 4v11M7 11l5 5 5-5M5 20h14" />
+  </Svg>
+)
+export const CheckIcon = (p: IconProps): JSX.Element => (
+  <Svg {...p}>
+    <path d="m5 12.5 4.5 4.5L19 7.5" />
+  </Svg>
+)
 export const PinIcon = ({ filled, ...p }: IconProps & { filled?: boolean }): JSX.Element => (
   <Svg {...p} fill={filled}>
     <path d="m15 4 5 5-3 1-3.5 3.5.5 4-1.5 1.5-3-4.5L5 19.5M9 10.5l-1-3 1.5-1.5 4 .5" />

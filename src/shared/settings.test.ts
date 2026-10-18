@@ -22,6 +22,7 @@ test('valid settings survive a round trip', () => {
     visualizer: false,
     dynamicColors: false,
     sidebarCollapsed: true,
+    prefetchNext: false,
     speed: 1.25,
     eqPreset: 'bass',
     eqGains: EQ_PRESETS[1].gains
@@ -48,4 +49,10 @@ test('playback speed is kept in a sane range', () => {
 
 test('every preset has one gain per band', () => {
   for (const preset of EQ_PRESETS) assert.equal(preset.gains.length, EQ_BANDS.length, preset.id)
+})
+
+test('fetching the next track ahead is on unless the user turned it off', () => {
+  assert.equal(sanitizeSettings({}).prefetchNext, true)
+  assert.equal(sanitizeSettings({ prefetchNext: false }).prefetchNext, false)
+  assert.equal(sanitizeSettings({ prefetchNext: 'no' }).prefetchNext, true)
 })

@@ -7,6 +7,7 @@ import { openCollection } from '../store/nav'
 import { currentTrack, playTracks, usePlayer } from '../store/player'
 import CoverCard from './CoverCard'
 import { PlayIcon, PlaylistIcon } from './Icons'
+import SaveOfflineButton from './SaveOfflineButton'
 import Skeleton from './Skeleton'
 import TrackList from './TrackList'
 
@@ -36,17 +37,20 @@ function LikedTracks(): JSX.Element {
   return (
     <>
       {tracks && tracks.length > 0 && (
-        <motion.button
-          className="chip play-all"
-          onClick={() => playTracks(tracks, 0)}
-          initial={{ opacity: 0, scale: 0.6 }}
-          animate={{ opacity: 1, scale: 1 }}
-          whileHover={{ scale: 1.07 }}
-          whileTap={{ scale: 0.92 }}
-          transition={{ type: 'spring', stiffness: 300, damping: 18 }}
-        >
-          <PlayIcon size={14} /> Играть
-        </motion.button>
+        <div className="play-all-row">
+          <motion.button
+            className="chip play-all"
+            onClick={() => playTracks(tracks, 0)}
+            initial={{ opacity: 0, scale: 0.6 }}
+            animate={{ opacity: 1, scale: 1 }}
+            whileHover={{ scale: 1.07 }}
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 18 }}
+          >
+            <PlayIcon size={14} /> Играть
+          </motion.button>
+          <SaveOfflineButton target="liked" title="Мне нравится" />
+        </div>
       )}
       {error && <p className="error">{error}</p>}
       {!tracks && !error && <Skeleton rows={9} />}

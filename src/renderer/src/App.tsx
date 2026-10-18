@@ -27,6 +27,7 @@ import {
   usePlayer
 } from './store/player'
 import { connectMini } from './store/mini'
+import { connectOffline } from './store/offline'
 import { useSettings } from './store/settings'
 import { connectUpdates, useAppInfo } from './store/update'
 import Ambient from './components/Ambient'
@@ -125,10 +126,17 @@ function useMiniPlayer(): void {
 }
 
 /** account: undefined while restoring (or offline), null when a login is needed. */
-function fromRestore(result: Restore): { offline: boolean; account: Account | null | undefined } {
-  if (result.status === 'ok') return { offline: false, account: result.account }
-  if (result.status === 'offline') return { offline: true, account: undefined }
-  return { offline: false, account: null }
+function fromRestore(result: Restore): {
+  offline: boolean
+  account: Account | null | undefined
+  /** Signed in, but Yandex cannot be reached: only what was saved for offline listening works. */
+  limited: boolean
+} {
+  if (result.status === 'ok') {
+    return { offline: false, account: result.account, limited: result.offline === true }
+  }
+  if (result.status === 'offline') return { offline: true, account: undefined, limited: false }
+  return { offline: false, account: null, limited: false }
 }
 
 function Page({
@@ -160,6 +168,7 @@ export default function App(): JSX.Element {
   // undefined: still restoring the saved session
   const [account, setAccount] = useState<Account | null | undefined>(undefined)
   const [offline, setOffline] = useState(false)
+  const [limited, setLimited] = useState(false)
   const route = useRoute()
   const track = usePlayer(currentTrack)
   const collapsed = useSettings((s) => s.sidebarCollapsed)
@@ -170,21 +179,44 @@ export default function App(): JSX.Element {
   useSettingsEffects()
   useMiniPlayer()
   useEffect(() => connectUpdates(), [])
+  useEffect(() => connectOffline(), [])
   const appInfo = useAppInfo()
 
   useEffect(() => {
     void window.api.restoreSession().then((result) => {
       const next = fromRestore(result)
       setOffline(next.offline)
+      setLimited(next.limited)
       setAccount(next.account)
     })
   }, [])
+
+  // Started without a connection: keep looking for it, and switch to the full app once it is back.
+  useEffect(() => {
+    if (!limited) return
+    const retry = (): void => {
+      void window.api.restoreSession().then((result) => {
+        const next = fromRestore(result)
+        if (next.account && !next.limited) {
+          setLimited(false)
+          setAccount(next.account)
+        }
+      })
+    }
+    window.addEventListener('online', retry)
+    const timer = setInterval(retry, 30_000)
+    return () => {
+      window.removeEventListener('online', retry)
+      clearInterval(timer)
+    }
+  }, [limited])
 
   const retryRestore = (): void => {
     setOffline(false)
     void window.api.restoreSession().then((result) => {
       const next = fromRestore(result)
       setOffline(next.offline)
+      setLimited(next.limited)
       setAccount(next.account)
     })
   }

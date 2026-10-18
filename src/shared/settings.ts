@@ -9,6 +9,8 @@ export interface Settings {
   /** Tint the interface with the colors of the cover. */
   dynamicColors: boolean
   sidebarCollapsed: boolean
+  /** Download the next track in the queue while the current one is still playing. */
+  prefetchNext: boolean
   speed: number
   eqPreset: string
   /** One gain in dB for each of EQ_BANDS. */
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   visualizer: true,
   dynamicColors: true,
   sidebarCollapsed: false,
+  prefetchNext: true,
   speed: 1,
   eqPreset: 'flat',
   eqGains: EQ_PRESETS[0].gains
@@ -71,6 +74,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     visualizer: bool('visualizer', DEFAULT_SETTINGS.visualizer),
     dynamicColors: bool('dynamicColors', DEFAULT_SETTINGS.dynamicColors),
     sidebarCollapsed: bool('sidebarCollapsed', DEFAULT_SETTINGS.sidebarCollapsed),
+    prefetchNext: bool('prefetchNext', DEFAULT_SETTINGS.prefetchNext),
     speed: clamp(speed, 0.5, 3),
     eqPreset: typeof input.eqPreset === 'string' ? input.eqPreset : DEFAULT_SETTINGS.eqPreset,
     eqGains

@@ -2,11 +2,13 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import type {
   Account,
+  CacheInfo,
   Collection,
   CollectionRef,
   DeviceCode,
   Lyrics,
   LyricsQuery,
+  OfflineState,
   Pin,
   PlaylistInfo,
   Quality,
@@ -61,6 +63,24 @@ const api = {
 
   setQuality: (quality: Quality): Promise<void> =>
     ipcRenderer.invoke('settings:set-quality', quality),
+
+  prefetch: (id: string): Promise<void> => ipcRenderer.invoke('cache:prefetch', id),
+  cacheInfo: (): Promise<CacheInfo> => ipcRenderer.invoke('cache:info'),
+  clearStreamCache: (): Promise<void> => ipcRenderer.invoke('cache:clear-stream'),
+  offlineState: (): Promise<OfflineState> => ipcRenderer.invoke('offline:state'),
+  saveOffline: (target: 'liked' | CollectionRef): Promise<void> =>
+    ipcRenderer.invoke('offline:save', target),
+  cancelOffline: (key: string): Promise<void> => ipcRenderer.invoke('offline:cancel', key),
+  removeOffline: (key: string): Promise<void> => ipcRenderer.invoke('offline:remove', key),
+  removeAllOffline: (): Promise<void> => ipcRenderer.invoke('offline:remove-all'),
+  onOfflineState: (callback: (state: OfflineState) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, state: OfflineState): void => callback(state)
+    ipcRenderer.on('offline:state', handler)
+    return () => ipcRenderer.removeListener('offline:state', handler)
+  },
+  downloadTrack: (track: { id: string; title: string; artists: string[] }): Promise<string> =>
+    ipcRenderer.invoke('track:download', track),
+  reveal: (path: string): Promise<void> => ipcRenderer.invoke('app:reveal', path),
 
   miniState: (track: MiniTrack | null): void => ipcRenderer.send('mini:state', track),
   miniToggle: (): Promise<void> => ipcRenderer.invoke('mini:toggle'),

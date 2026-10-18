@@ -1,13 +1,32 @@
-import { clipboard, ipcMain, shell } from 'electron'
+import { app, clipboard, ipcMain, shell, type BrowserWindow } from 'electron'
+import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
+import { dirname, join, parse } from 'node:path'
 import { OAuthError, pollDeviceToken, requestDeviceCode } from './yandex/auth'
 import { YandexMusic } from './yandex/client'
 import { isAuthFailure } from './yandex/errors'
 import { TrackStreamer } from './yandex/stream'
 import { resolveLyrics } from '../shared/lyrics-resolve'
 import { sanitizeLyricsQuery } from '../shared/lyrics-query'
-import type { Account, CollectionRef, Quality, Restore, WaveEvent } from '../shared/types'
+import { refKey } from '../shared/collections'
+import type {
+  Account,
+  CacheInfo,
+  CollectionRef,
+  Lyrics,
+  LyricsQuery,
+  OfflineState,
+  Quality,
+  Restore,
+  Track,
+  WaveEvent
+} from '../shared/types'
+import { TrackCache, safeFileName } from './yandex/cache.ts'
+import { OfflineLibrary } from './yandex/offline.ts'
 import { OPEN_SOURCES } from './lyrics/open-sources'
 import { clearToken, loadToken, saveToken } from './store'
+
+const STREAM_CACHE_LIMIT = 400 * 1024 * 1024
+const LIKED_OFFLINE_LIMIT = 500
 
 const RESTORE_ATTEMPTS = 3
 const RESTORE_RETRY_MS = 2000
@@ -41,10 +60,48 @@ async function pollOnce(deviceCode: string): Promise<string | null> {
   }
 }
 
-export function registerIpc(): void {
+let offline: OfflineLibrary | null = null
+
+/** A cover the user saved for offline listening, if there is one; the protocol handler asks before going online. */
+export function offlineCover(uri: string, size: string): { file: string; type: string } | null {
+  return offline?.coverFile(uri, size) ?? null
+}
+
+export function registerIpc(getPlayerWindow: () => BrowserWindow | null): void {
+  const send = (channel: string, payload: unknown): void => {
+    const window = getPlayerWindow()
+    if (window && !window.isDestroyed()) window.webContents.send(channel, payload)
+  }
+
+  const cacheRoot = join(app.getPath('userData'), 'cache')
+  const files = new TrackCache(cacheRoot, {
+    streamLimit: STREAM_CACHE_LIMIT,
+    resolve: (id, quality) => streamer.sourceFor(id, quality)
+  })
+  streamer.attachFiles(files)
+
+  const lyricsFor = (query: LyricsQuery): Promise<Lyrics> =>
+    resolveLyrics(query, () => requireApi().lyrics(query.id), OPEN_SOURCES)
+  const trackQuery = (track: Track): LyricsQuery => ({
+    id: track.id,
+    title: track.title,
+    artists: track.artists.map((artist) => artist.name),
+    album: track.albums[0]?.title,
+    durationSec: track.durationMs / 1000
+  })
+  const library = new OfflineLibrary(cacheRoot, {
+    cache: files,
+    quality: () => streamer.quality,
+    lyrics: (track) => lyricsFor(trackQuery(track)),
+    emit: (state: OfflineState) => send('offline:state', state)
+  })
+  offline = library
+
   ipcMain.handle('auth:restore', async (): Promise<Restore> => {
     const token = loadToken()
     if (!token) return { status: 'login' }
+    // With something saved there is a reason to open the app without a connection, so do not make the user wait.
+    const attempts = library.list().length > 0 ? 1 : RESTORE_ATTEMPTS
     for (let attempt = 1; ; attempt++) {
       try {
         return { status: 'ok', account: await signIn(token) }
@@ -54,7 +111,16 @@ export function registerIpc(): void {
           clearToken()
           return { status: 'login' }
         }
-        if (attempt >= RESTORE_ATTEMPTS) return { status: 'offline' }
+        if (attempt >= attempts) {
+          // Saved collections and their lyrics and covers work without Yandex; the rest waits for the network.
+          return library.list().length > 0
+            ? {
+                status: 'ok',
+                account: { uid: 0, login: 'Без сети', hasPlus: false },
+                offline: true
+              }
+            : { status: 'offline' }
+        }
         await sleep(RESTORE_RETRY_MS)
       }
     }
@@ -98,7 +164,16 @@ export function registerIpc(): void {
   })
 
   ipcMain.handle('ym:search', (_, text: string) => requireApi().search(text))
-  ipcMain.handle('ym:liked', () => requireApi().likedTracks())
+  ipcMain.handle('ym:liked', async () => {
+    try {
+      return await requireApi().likedTracks()
+    } catch (error) {
+      // Offline: the saved copy of the liked tracks, if there is one.
+      const saved = library.get('liked')
+      if (saved && !isAuthFailure(error)) return saved.tracks
+      throw error
+    }
+  })
   ipcMain.handle('ym:liked-ids', () => requireApi().likedIds())
   ipcMain.handle('ym:set-dislike', (_, id: string, disliked: boolean) =>
     requireApi().setDislike(id, disliked)
@@ -106,13 +181,23 @@ export function registerIpc(): void {
   ipcMain.handle('ym:lyrics', (_, raw: unknown) => {
     const query = sanitizeLyricsQuery(raw)
     if (!query) throw new Error('Неверный запрос текста')
-    return resolveLyrics(query, () => requireApi().lyrics(query.id), OPEN_SOURCES)
+    // A saved collection brought its lyrics along; they are used first, so they work without a connection.
+    const saved = library.lyricsOf(query.id)
+    return saved?.source ? saved : lyricsFor(query)
   })
   ipcMain.handle('ym:set-like', (_, id: string, liked: boolean) => requireApi().setLike(id, liked))
   ipcMain.handle('ym:similar', (_, id: string) => requireApi().similar(id))
   ipcMain.handle('ym:pins', () => requireApi().pins())
   ipcMain.handle('ym:playlists', () => requireApi().playlists())
-  ipcMain.handle('ym:collection', (_, ref: CollectionRef) => requireApi().collection(ref))
+  ipcMain.handle('ym:collection', async (_, ref: CollectionRef) => {
+    try {
+      return await requireApi().collection(ref)
+    } catch (error) {
+      const saved = library.get(refKey(ref))?.collection
+      if (saved && !isAuthFailure(error)) return saved
+      throw error
+    }
+  })
   ipcMain.handle('ym:set-pin', (_, ref: CollectionRef, pinned: boolean) =>
     requireApi().setPin(ref, pinned)
   )
@@ -137,5 +222,78 @@ export function registerIpc(): void {
   )
   ipcMain.handle('settings:set-quality', (_, quality: Quality) => {
     streamer.quality = quality
+  })
+
+  /* ---------- caching, offline collections, saving a track as a file ---------- */
+
+  // Only one prefetch at a time: a new one is not worth starting while the last still runs.
+  let prefetching: Promise<unknown> | null = null
+  ipcMain.handle('cache:prefetch', (_, id: unknown) => {
+    if (typeof id !== 'string' || prefetching || files.find(id, streamer.quality)) return
+    prefetching = files
+      .download(id, streamer.quality, 'stream')
+      .catch(() => undefined)
+      .finally(() => {
+        prefetching = null
+      })
+  })
+
+  ipcMain.handle('offline:state', (): OfflineState => library.state())
+  ipcMain.handle('offline:save', async (_, target: unknown) => {
+    const client = requireApi()
+    if (target === 'liked') {
+      return library.save('liked', async () => ({
+        title: 'Мне нравится',
+        subtitle: 'Любимые треки',
+        tracks: await client.likedTracks(LIKED_OFFLINE_LIMIT)
+      }))
+    }
+    const ref = target as CollectionRef
+    if (!ref || !['playlist', 'album', 'artist'].includes(ref.type))
+      throw new Error('Неверный запрос')
+    return library.save(refKey(ref), async () => {
+      const collection = await client.collection(ref)
+      return {
+        title: collection.title,
+        subtitle: collection.subtitle,
+        coverUri: collection.coverUri,
+        tracks: collection.tracks,
+        collection
+      }
+    })
+  })
+  ipcMain.handle('offline:cancel', (_, key: unknown) => {
+    if (typeof key === 'string') library.cancel(key)
+  })
+  ipcMain.handle('offline:remove', (_, key: unknown) => {
+    if (typeof key === 'string') library.remove(key)
+  })
+  ipcMain.handle('offline:remove-all', () => library.removeAll())
+  ipcMain.handle('cache:info', (): CacheInfo => ({ ...files.sizes(), collections: library.list() }))
+  ipcMain.handle('cache:clear-stream', () => files.clear('stream'))
+
+  const downloads = (): string => join(app.getPath('downloads'), 'trashee')
+  ipcMain.handle('track:download', async (_, raw: unknown) => {
+    const input = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+    if (typeof input.id !== 'string' || typeof input.title !== 'string')
+      throw new Error('Неверный запрос')
+    const artists = Array.isArray(input.artists)
+      ? input.artists.filter((a) => typeof a === 'string')
+      : []
+    // The track goes through the disk cache, so a track that is already cached is not fetched again.
+    const cached = await files.download(input.id, streamer.quality, 'stream')
+    mkdirSync(downloads(), { recursive: true })
+    const name = safeFileName([artists.join(', '), input.title].filter(Boolean).join(' - '))
+    let target = join(downloads(), `${name}.${cached.ext}`)
+    for (let n = 2; existsSync(target); n++)
+      target = join(downloads(), `${name} (${n}).${cached.ext}`)
+    copyFileSync(cached.file, target)
+    return target
+  })
+  ipcMain.handle('app:reveal', (_, path: unknown) => {
+    // Only files this app saved can be shown.
+    if (typeof path === 'string' && dirname(path) === downloads() && parse(path).base) {
+      shell.showItemInFolder(path)
+    }
   })
 }

@@ -2,7 +2,9 @@ import type { JSX, ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { SPEEDS, type MotionLevel } from '../../../shared/settings'
 import type { Account, Quality } from '../../../shared/types'
+import { formatBytes as sizeText, removeOffline, useCacheInfo } from '../store/offline'
 import { setMiniAnchor, toggleMini, useMiniAnchor, useMiniVisible } from '../store/mini'
+import { trackWord } from '../lib/cover'
 import { updateSettings, useSettings } from '../store/settings'
 import { formatBytes, useAppInfo, useUpdate } from '../store/update'
 import EqualizerPanel from './EqualizerPanel'
@@ -64,6 +66,80 @@ function updateHint(update: ReturnType<typeof useUpdate>): string {
     default:
       return 'Ещё не проверяли с этого запуска.'
   }
+}
+
+function CacheSection({ index }: { index: number }): JSX.Element {
+  const prefetchNext = useSettings((s) => s.prefetchNext)
+  const { info, reload } = useCacheInfo()
+  const saved = info?.collections ?? []
+
+  return (
+    <Section title="Кеш и загрузки" index={index}>
+      <Row
+        title="Подгружать следующий трек"
+        hint="Со второй половины трека следующий скачивается заранее, и переход к нему без ожидания."
+      >
+        <Switch
+          label="Подгружать следующий трек"
+          checked={prefetchNext}
+          onChange={(checked) => updateSettings({ prefetchNext: checked })}
+        />
+      </Row>
+      <Row
+        title="Кеш прослушанного"
+        hint="Подгруженные треки. Самые старые удаляются сами, когда набирается 400 МБ."
+      >
+        <div className="setting-buttons">
+          <span className="setting-value">{info ? sizeText(info.stream) : '…'}</span>
+          <motion.button
+            className="chip"
+            disabled={!info || info.stream === 0}
+            onClick={() => void window.api.clearStreamCache().then(reload)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.93 }}
+          >
+            Очистить
+          </motion.button>
+        </div>
+      </Row>
+      <Row
+        title="Сохранено офлайн"
+        hint="Плейлисты и альбомы целиком: треки, тексты и обложки. Сохраняются кнопкой на странице плейлиста."
+      >
+        <div className="setting-buttons">
+          <span className="setting-value">
+            {info ? `${saved.length ? `${saved.length} · ` : ''}${sizeText(info.offline)}` : '…'}
+          </span>
+          {saved.length > 0 && (
+            <motion.button
+              className="chip danger"
+              onClick={() => void window.api.removeAllOffline().then(reload)}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.93 }}
+            >
+              Удалить всё
+            </motion.button>
+          )}
+        </div>
+      </Row>
+      {saved.map((entry) => (
+        <Row
+          key={entry.key}
+          title={entry.title}
+          hint={[trackWord(entry.trackCount), entry.subtitle].filter(Boolean).join(' · ')}
+        >
+          <motion.button
+            className="chip"
+            onClick={() => removeOffline(entry.key, entry.title)}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.93 }}
+          >
+            Убрать
+          </motion.button>
+        </Row>
+      ))}
+    </Section>
+  )
 }
 
 function AboutSection({ index }: { index: number }): JSX.Element {
@@ -269,7 +345,9 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <Section title="Горячие клавиши" index={3}>
+      <CacheSection index={3} />
+
+      <Section title="Горячие клавиши" index={4}>
         {SHORTCUTS.map(([keys, action]) => (
           <div key={keys} className="setting-row shortcut">
             <kbd>{keys}</kbd>
@@ -278,7 +356,7 @@ export default function SettingsPage({
         ))}
       </Section>
 
-      <Section title="Аккаунт" index={4}>
+      <Section title="Аккаунт" index={5}>
         <Row title={account.login} hint={account.hasPlus ? 'Яндекс Плюс' : 'Без подписки'}>
           <motion.button
             className="chip danger"
@@ -291,7 +369,7 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <AboutSection index={5} />
+      <AboutSection index={6} />
 
       <p className="muted small about">
         trashee — неофициальный клиент Яндекс Музыки. Он использует закрытое API сервиса, которое

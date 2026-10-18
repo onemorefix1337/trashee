@@ -2226,3 +2226,14 @@ html[data-platform='linux'] .sidebar {
 .update-btn.text:hover {
   color: var(--text);
 }
+
+/* Play and save-offline side by side above a list */
+.play-all-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.play-all-row .play-all {
+  margin-bottom: 0;
+}
