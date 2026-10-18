@@ -43,6 +43,7 @@ const api = {
   lyrics: (query: LyricsQuery): Promise<Lyrics> => ipcRenderer.invoke('ym:lyrics', query),
   similar: (id: string): Promise<Track[]> => ipcRenderer.invoke('ym:similar', id),
 
+  tracks: (ids: string[]): Promise<Track[]> => ipcRenderer.invoke('ym:tracks', ids),
   pins: (): Promise<Pin[]> => ipcRenderer.invoke('ym:pins'),
   playlists: (): Promise<PlaylistInfo[]> => ipcRenderer.invoke('ym:playlists'),
   createPlaylist: (title: string): Promise<PlaylistInfo> =>

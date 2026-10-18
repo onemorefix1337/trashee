@@ -49,6 +49,7 @@ async function signIn(token: string): Promise<Account> {
 }
 
 const PLAYLIST_TITLE_LIMIT = 100
+const TRACKS_LOOKUP_LIMIT = 50
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -189,6 +190,15 @@ export function registerIpc(getPlayerWindow: () => BrowserWindow | null): void {
   })
   ipcMain.handle('ym:set-like', (_, id: string, liked: boolean) => requireApi().setLike(id, liked))
   ipcMain.handle('ym:similar', (_, id: string) => requireApi().similar(id))
+  ipcMain.handle('ym:tracks', (_, ids: unknown) => {
+    if (
+      !Array.isArray(ids) ||
+      ids.length > TRACKS_LOOKUP_LIMIT ||
+      !ids.every((id) => typeof id === 'string')
+    )
+      throw new Error('Неверный список треков')
+    return requireApi().tracks(ids)
+  })
   ipcMain.handle('ym:pins', () => requireApi().pins())
   ipcMain.handle('ym:playlists', () => requireApi().playlists())
   ipcMain.handle('ym:create-playlist', (_, title: unknown) => {

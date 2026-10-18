@@ -287,9 +287,10 @@ export class YandexMusic {
   async collection(ref: CollectionRef): Promise<Collection> {
     switch (ref.type) {
       case 'playlist': {
+        const owner = ref.uid ?? ref.login
         const path =
-          ref.uid !== undefined && ref.kind !== undefined
-            ? `/users/${ref.uid}/playlists/${ref.kind}`
+          owner !== undefined && ref.kind !== undefined
+            ? `/users/${encodeURIComponent(owner)}/playlists/${ref.kind}`
             : `/playlist/${ref.uuid}`
         const raw = await this.request<any>(path)
         const tracks = await this.resolveTrackItems(raw?.tracks ?? [])

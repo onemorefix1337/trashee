@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { Track } from '../../../shared/types'
+import { parseYandexLink } from '../../../shared/yandex-link'
+import { openYandexLink } from '../store/links'
 import { currentTrack, playTracks, usePlayer } from '../store/player'
+import { showToast } from '../store/toast'
 import { SearchIcon } from './Icons'
 import Skeleton from './Skeleton'
 import TrackList from './TrackList'
 
 const DEBOUNCE_MS = 350
+const LINK_DELAY_MS = 200
 
 interface Outcome {
   query: string
@@ -20,14 +24,25 @@ export default function SearchPage({ focusSignal }: { focusSignal: number }): JS
   const input = useRef<HTMLInputElement>(null)
   const playingId = usePlayer((s) => currentTrack(s)?.id)
   const query = text.trim()
+  const link = useMemo(() => parseYandexLink(query), [query])
 
   useEffect(() => {
     input.current?.focus()
     input.current?.select()
   }, [focusSignal])
 
+  // A pasted Yandex Music link is opened instead of searched for.
   useEffect(() => {
-    if (!query) return
+    if (!link) return
+    const timer = setTimeout(() => {
+      setText('')
+      openYandexLink(link).catch(() => showToast('Не удалось открыть ссылку'))
+    }, LINK_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [link])
+
+  useEffect(() => {
+    if (!query || link) return
     let stale = false
     const timer = setTimeout(() => {
       window.api
@@ -39,11 +54,11 @@ export default function SearchPage({ focusSignal }: { focusSignal: number }): JS
       stale = true
       clearTimeout(timer)
     }
-  }, [query])
+  }, [query, link])
 
   const settled = outcome?.query === query
   const tracks = outcome?.tracks ?? []
-  const loading = query !== '' && !settled
+  const loading = query !== '' && !settled && !link
 
   return (
     <div className="page">
@@ -66,7 +81,7 @@ export default function SearchPage({ focusSignal }: { focusSignal: number }): JS
           ref={input}
           value={text}
           onChange={(event) => setText(event.target.value)}
-          placeholder="Треки, исполнители"
+          placeholder="Треки, исполнители или ссылка на Яндекс Музыку"
           spellCheck={false}
         />
         <AnimatePresence>

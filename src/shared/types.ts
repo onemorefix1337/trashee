@@ -64,7 +64,7 @@ export interface DeviceCode {
 
 /** Something with a list of tracks that can be opened, played and pinned. */
 export type CollectionRef =
-  | { type: 'playlist'; uid?: number; kind?: number; uuid?: string }
+  | { type: 'playlist'; uid?: number; kind?: number; uuid?: string; login?: string }
   | { type: 'album'; id: number }
   | { type: 'artist'; id: number }
 

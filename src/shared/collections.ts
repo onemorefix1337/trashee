@@ -4,8 +4,10 @@ import type { CollectionRef } from './types'
 export function refKey(ref: CollectionRef): string {
   switch (ref.type) {
     case 'playlist':
-      return ref.uid !== undefined && ref.kind !== undefined
-        ? `playlist:${ref.uid}:${ref.kind}`
+      if (ref.uid !== undefined && ref.kind !== undefined) return `playlist:${ref.uid}:${ref.kind}`
+      // A link names the owner by login; the key follows it until the playlist is loaded and has its numeric owner.
+      return ref.login !== undefined && ref.kind !== undefined
+        ? `playlist:@${ref.login}:${ref.kind}`
         : `playlist:${ref.uuid}`
     case 'album':
       return `album:${ref.id}`
