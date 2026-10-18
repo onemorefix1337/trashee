@@ -21,8 +21,8 @@ import app.trashee.player.SPECTRUM_BANDS
  * How fast a bar rises and falls: the share of the way to the new level (rising) or of its height (falling) per update, of which
  * there are about 60 a second. The measurements are smoothed once more before this, so the bars calm down without lagging behind the beat.
  */
-private const val RELEASE = 0.84f
-private const val ATTACK = 0.5f
+private const val RELEASE = 0.9f
+private const val ATTACK = 0.3f
 private const val SETTLED = 0.01f
 
 /**

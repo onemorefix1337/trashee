@@ -24,7 +24,7 @@ private const val FLOOR_DB = 60f
  * A share of the previous measurement kept in the next one, per measurement (about 86 a second). One window of sound
  * fluctuates a lot by itself, even in a steady tone; without this the bars shimmer. The browser's analyser does the same.
  */
-private const val SMOOTHING = 0.72f
+private const val SMOOTHING = 0.88f
 
 /**
  * Passes the sound through untouched and measures it on the way: log-spaced bands, 0..1, for the visualizer.
