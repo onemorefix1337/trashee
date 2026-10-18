@@ -50,9 +50,11 @@ class UpdateLogicTest {
     }
 
     @Test
-    fun `only android tags count, desktop releases are ignored`() {
+    fun `tags of the unified release and of the old android releases are read, anything else is not`() {
         assertEquals("0.2.0", androidVersionOfTag("android-v0.2.0"))
-        assertNull(androidVersionOfTag("v0.3.0"))
+        assertEquals("1.0.0", androidVersionOfTag("v1.0.0"))
+        assertNull(androidVersionOfTag("vnext"))
+        assertNull(androidVersionOfTag("1.0.0"))
         assertNull(androidVersionOfTag("android-vnext"))
         assertNull(androidVersionOfTag("android-0.2.0"))
     }

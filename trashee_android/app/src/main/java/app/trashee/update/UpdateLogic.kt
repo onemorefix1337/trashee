@@ -2,8 +2,11 @@ package app.trashee.update
 
 /** Everything about updates that does not need Android: versions, tags, checksums, release notes. */
 
-/** Android releases live in the same repository as the desktop ones, told apart by their tag: "android-v0.1.0". */
-const val TAG_PREFIX = "android-v"
+/**
+ * One release carries the installers for the computer and the APK: "v1.0.0". Before 1.0 the APK had releases of its
+ * own, tagged "android-v0.1.0"; both are still understood. What decides whether a release is for the phone is the APK in it.
+ */
+private const val LEGACY_TAG_PREFIX = "android-v"
 
 data class Version(val major: Int, val minor: Int, val patch: Int, val pre: List<String>)
 
@@ -40,9 +43,9 @@ fun compareVersions(a: String, b: String): Int? {
 
 fun isNewer(candidate: String, current: String): Boolean = (compareVersions(candidate, current) ?: 0) > 0
 
-/** "0.2.0" for the tag "android-v0.2.0"; null for the desktop releases and anything else. */
+/** "1.0.0" for the tags "v1.0.0" and "android-v1.0.0"; null for anything else. */
 fun androidVersionOfTag(tag: String): String? =
-    tag.takeIf { it.startsWith(TAG_PREFIX) }?.removePrefix(TAG_PREFIX)?.takeIf { parseVersion(it) != null }
+    tag.removePrefix(LEGACY_TAG_PREFIX).removePrefix("v").takeIf { (tag.startsWith("v") || tag.startsWith(LEGACY_TAG_PREFIX)) && parseVersion(it) != null }
 
 data class ReleaseAsset(val name: String, val size: Long, val url: String)
 

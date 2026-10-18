@@ -170,7 +170,7 @@ async function checkForUpdates(manual: boolean): Promise<void> {
     })
     if (!response.ok) throw new Error(`GitHub ответил ${response.status}`)
     const listed = (await response.json()) as Record<string, unknown>[]
-    // Desktop releases are tagged v1.2.3; "android-v1.2.3" and drafts are not for us.
+    // Releases are tagged v1.2.3 (the APK for the phone is attached to the same release); drafts and old "android-v" releases are not for us.
     const body = (Array.isArray(listed) ? listed : [listed])
       .filter(
         (release) =>

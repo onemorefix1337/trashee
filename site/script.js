@@ -155,7 +155,7 @@
     tarGz: /linux-x64\.tar\.gz$/,
     sums: /SHA256SUMS\.txt$/
   }
-  // The Android app has releases of its own, tagged android-v1.2.3, in the same repository.
+  // The APK lives in the same release as the installers. Before 1.0 it had releases of its own (android-v0.1.0).
   const ANDROID_ASSETS = {
     apk: /\.apk$/,
     sumsAndroid: /SHA256SUMS\.txt$/
@@ -168,7 +168,7 @@
 
   const formatSize = (bytes) => `${Math.round(bytes / 1048576)} МБ`
 
-  // Not "latest": that would be whichever release came last, and the Android app has releases of its own.
+  // Read the list, not "latest": a release that is a draft or has no installers must not decide what is offered.
   fetch(`https://api.github.com/repos/${REPO}/releases?per_page=30`, {
     headers: { Accept: 'application/vnd.github+json' }
   })
@@ -176,7 +176,11 @@
     .then((releases) => {
       const published = releases.filter((release) => !release.draft && !release.prerelease)
       const desktop = published.find((release) => /^v\d/.test(release.tag_name))
-      const android = published.find((release) => /^android-v\d/.test(release.tag_name))
+      const hasApk = (release) => (release?.assets ?? []).some((asset) => ANDROID_ASSETS.apk.test(asset.name))
+      // The same release when it carries the APK, else the newest one that does (an old android-v release).
+      const android = hasApk(desktop)
+        ? desktop
+        : published.find((release) => /^(android-)?v\d/.test(release.tag_name) && hasApk(release))
 
       const wire = (release, patterns) => {
         const assets = release?.assets ?? []
@@ -195,7 +199,8 @@
 
       const versionOf = (release) => String(release?.tag_name ?? '').replace(/^(android-)?v/i, '')
       const version = versionOf(desktop)
-      const androidVersion = versionOf(android)
+      // Only worth a mention when the phone's version is not the same as the computer's.
+      const androidVersion = android && android !== desktop ? versionOf(android) : ''
       const label = $('#version')
       if (label && version) label.textContent = `Версия ${version}${androidVersion ? ` · Android ${androidVersion}` : ''}`
       const line = $('#release-line')

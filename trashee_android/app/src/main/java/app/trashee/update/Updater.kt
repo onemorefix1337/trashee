@@ -118,6 +118,8 @@ class Updater(private val context: Context, private val scope: CoroutineScope) {
                 val newest = releases
                     .mapNotNull { release -> androidVersionOfTag(release["tag_name"].str().orEmpty())?.let { it to release } }
                     .filter { (_, release) -> release["draft"].bool() != true && release["prerelease"].bool() != true }
+                    // A desktop-only release (no APK in it) is not an update for the phone, however new its number.
+                    .filter { (_, release) -> pickApk(releaseAssets(release)) != null }
                     .maxWithOrNull { (a, _), (b, _) -> compareVersions(a, b) ?: 0 }
 
                 if (newest == null || !isNewer(newest.first, BuildConfig.VERSION_NAME)) {
@@ -125,9 +127,7 @@ class Updater(private val context: Context, private val scope: CoroutineScope) {
                     return@launch
                 }
                 val (version, release) = newest
-                val assets = release["assets"].list().map {
-                    ReleaseAsset(it["name"].str().orEmpty(), it["size"].long() ?: 0, it["browser_download_url"].str().orEmpty())
-                }
+                val assets = releaseAssets(release)
                 val apk = pickApk(assets)?.takeIf { trusted(it.url) }
                 if (apk == null) {
                     _state.update { it.copy(status = UpdateStatus.None, info = null, prompt = false, checkedAt = checkedAt) }
@@ -160,6 +160,11 @@ class Updater(private val context: Context, private val scope: CoroutineScope) {
             }
         }
     }
+
+    private fun releaseAssets(release: kotlinx.serialization.json.JsonElement?): List<ReleaseAsset> =
+        release["assets"].list().map {
+            ReleaseAsset(it["name"].str().orEmpty(), it["size"].long() ?: 0, it["browser_download_url"].str().orEmpty())
+        }
 
     private fun fetchReleases() = http("${BuildConfig.GITHUB_API}/releases?per_page=30").use { response ->
         if (!response.isSuccessful) error("GitHub ответил ${response.code}")
