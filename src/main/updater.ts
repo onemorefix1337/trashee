@@ -22,9 +22,11 @@ import { pipeline } from 'node:stream/promises'
 import {
   INITIAL_UPDATE_STATE,
   REMIND_LATER_MS,
+  compareVersions,
   isNewer,
   parseChecksums,
   pickAsset,
+  parseVersion,
   pickMacZip,
   plainNotes,
   sanitizeUpdatePrefs,
@@ -39,7 +41,8 @@ import {
 const REPO = 'onemorefix1337/trashee'
 // A test can point the updater at its own server; nothing else reads this.
 const API_OVERRIDE = process.env['TRASHEE_UPDATE_API']
-const LATEST_URL = API_OVERRIDE ?? `https://api.github.com/repos/${REPO}/releases/latest`
+// The list, not "latest": Android releases of this repository must never be taken for a desktop update.
+const RELEASES_URL = API_OVERRIDE ?? `https://api.github.com/repos/${REPO}/releases?per_page=30`
 const STARTUP_DELAY_MS = 4_000
 const RECHECK_MS = 6 * 60 * 60 * 1000
 const CHECK_TIMEOUT_MS = 10_000
@@ -161,14 +164,28 @@ export async function checkForUpdates(manual: boolean): Promise<void> {
   const before = state.status
   publish({ status: 'checking', error: null })
   try {
-    const response = await fetch(LATEST_URL, {
+    const response = await fetch(RELEASES_URL, {
       headers: { Accept: 'application/vnd.github+json', 'User-Agent': userAgent() },
       signal: AbortSignal.timeout(CHECK_TIMEOUT_MS)
     })
     if (!response.ok) throw new Error(`GitHub ответил ${response.status}`)
-    const body = (await response.json()) as Record<string, unknown>
-    const tag = String(body.tag_name ?? '')
+    const listed = (await response.json()) as Record<string, unknown>[]
+    // Desktop releases are tagged v1.2.3; "android-v1.2.3" and drafts are not for us.
+    const body = (Array.isArray(listed) ? listed : [listed])
+      .filter(
+        (release) =>
+          release.draft !== true &&
+          release.prerelease !== true &&
+          parseVersion(String(release.tag_name ?? '')) !== null
+      )
+      .sort((a, b) => compareVersions(String(b.tag_name), String(a.tag_name)) ?? 0)[0]
     const checkedAt = Date.now()
+    const tag = String(body?.tag_name ?? '')
+    if (!body) {
+      release = null
+      publish({ status: 'none', info: null, prompt: false, checkedAt })
+      return
+    }
 
     if (!isNewer(tag, app.getVersion())) {
       release = null
