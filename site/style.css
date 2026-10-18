@@ -724,11 +724,85 @@ h3 {
   text-align: center;
 }
 
+/* ───────── android ───────── */
+
+.phones {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 28px;
+  align-items: start;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding-bottom: 36px;
+}
+.phone {
+  margin: 0;
+  text-align: center;
+}
+.phone:nth-child(even) {
+  transform: translateY(36px);
+}
+.phone img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 7px solid #0b0b0d;
+  border-radius: 36px;
+  background: #0a0a0b;
+  outline: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow:
+    0 50px 90px -34px rgb(255 107 139 / 0.32),
+    0 24px 44px -24px rgb(0 0 0 / 0.9);
+}
+.phone figcaption {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.android-points {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px 40px;
+  max-width: 900px;
+  margin: 64px auto 0;
+  padding: 0;
+  list-style: none;
+}
+.android-points li {
+  position: relative;
+  padding-left: 24px;
+  color: var(--muted);
+  font-size: 16px;
+}
+.android-points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.android-points strong {
+  color: var(--text);
+}
+.cta-center {
+  margin: 44px 0 0;
+  text-align: center;
+}
+.cta-center .btn small {
+  margin-left: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
 /* ───────── downloads ───────── */
 
 .downloads {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 18px;
 }
 .dl {
@@ -813,7 +887,7 @@ h3 {
 }
 .first-run-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 28px;
   margin-top: 26px;
 }
@@ -1066,8 +1140,28 @@ h3 {
   }
   .features,
   .downloads,
-  .first-run-grid {
+  .first-run-grid,
+  .android-points {
     grid-template-columns: 1fr;
+  }
+  /* The phones turn into a row you can swipe through. */
+  .phones {
+    display: flex;
+    gap: 18px;
+    padding-bottom: 20px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .phones::-webkit-scrollbar {
+    display: none;
+  }
+  .phone {
+    flex: 0 0 min(64%, 270px);
+    scroll-snap-align: center;
+  }
+  .phone:nth-child(even) {
+    transform: none;
   }
   .showcase {
     grid-template-columns: 1fr;
