@@ -17,6 +17,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import app.trashee.BuildConfig
 import app.trashee.data.Repo
 import app.trashee.data.Toasts
 import app.trashee.data.Track
@@ -36,8 +37,10 @@ private const val POSITION_TICK_MS = 250L
 private const val RESTART_THRESHOLD_MS = 3000L
 private const val PREFETCH_LAST_MS = 45_000L
 
-fun coverUrl(coverUri: String?, size: String = "400x400"): String? =
-    coverUri?.let { "https://${it.replace("%%", size)}" }
+fun coverUrl(coverUri: String?, size: String = "400x400"): String? = coverUri?.let {
+    // Real covers are bare "host/path" templates. A debug build may be pointed at a test server over plain http.
+    if (BuildConfig.DEBUG && it.startsWith("http://")) it else "https://${it.replace("%%", size)}"
+}
 
 data class PlayerUi(
     val queue: List<Track> = emptyList(),
