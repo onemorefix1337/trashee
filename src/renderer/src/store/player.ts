@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import type { Track, WaveEvent } from '../../../shared/types'
 import { EQ_BANDS } from '../../../shared/settings'
+import { fadeLevel } from '../../../shared/sleep'
 import { artistNames, publicCoverUrl } from '../lib/cover'
 import { getSettings } from './settings'
 import { showToast } from './toast'
@@ -325,6 +326,39 @@ export function setVolume(volume: number): void {
   }
 }
 
+/** How often the volume is lowered during a fade; fine enough that the steps cannot be heard. */
+const FADE_STEP_MS = 200
+let fadeTimer: ReturnType<typeof setInterval> | null = null
+
+/** Puts the volume back where the user left it and stops a fade that is under way. */
+export function cancelFade(): void {
+  if (fadeTimer === null) return
+  clearInterval(fadeTimer)
+  fadeTimer = null
+  audio.volume = state.volume
+}
+
+/** Lowers the sound to silence over `ms`, pauses, and puts the volume back for the next time. */
+export function fadeOutAndPause(ms: number): void {
+  cancelFade()
+  const startedAt = performance.now()
+  const from = audio.volume
+  fadeTimer = setInterval(() => {
+    const elapsed = performance.now() - startedAt
+    audio.volume = from * fadeLevel(elapsed, ms)
+    if (elapsed < ms) return
+    audio.pause()
+    cancelFade()
+  }, FADE_STEP_MS)
+}
+
+let stopAfterTrack: (() => void) | null = null
+
+/** Makes the player stop instead of moving on when the current track ends; `done` is told when it has. Null takes it back. */
+export function stopAfterCurrentTrack(done: (() => void) | null): void {
+  stopAfterTrack = done
+}
+
 export function toggleShuffle(): void {
   set({ shuffle: !state.shuffle })
 }
@@ -524,6 +558,15 @@ audio.addEventListener('timeupdate', () => {
 audio.addEventListener('error', handleFailure)
 audio.addEventListener('ended', () => {
   waveFeedback('trackFinished', currentTrack(state), audio.duration)
+  if (stopAfterTrack) {
+    const done = stopAfterTrack
+    stopAfterTrack = null
+    audio.pause()
+    audio.currentTime = 0
+    set({ position: 0 })
+    done()
+    return
+  }
   if (state.repeat === 'one') {
     audio.currentTime = 0
     void audio.play()

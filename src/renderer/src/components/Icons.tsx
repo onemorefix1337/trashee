@@ -156,3 +156,8 @@ export const MoreIcon = (p: IconProps): JSX.Element => (
     <circle cx="19" cy="12" r="1.8" stroke="none" />
   </Svg>
 )
+export const MoonIcon = (p: IconProps): JSX.Element => (
+  <Svg {...p}>
+    <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" />
+  </Svg>
+)

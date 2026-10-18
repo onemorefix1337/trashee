@@ -774,6 +774,26 @@ input:focus-visible {
   align-items: center;
   gap: 16px;
 }
+.sleep {
+  position: relative;
+}
+.sleep-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 10px);
+  z-index: 20;
+  width: 200px;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgb(22 22 25 / 0.96);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--line);
+  box-shadow: 0 24px 60px -16px rgb(0 0 0 / 0.7);
+  transform-origin: bottom left;
+}
+.sleep-menu .menu-item {
+  height: 38px;
+}
 .volume {
   margin-left: auto;
   display: flex;

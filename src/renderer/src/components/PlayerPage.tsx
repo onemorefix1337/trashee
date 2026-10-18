@@ -34,6 +34,7 @@ import ArtistLinks from './ArtistLinks'
 import LikeButton from './LikeButton'
 import LyricsPanel from './LyricsPanel'
 import SeekBar from './SeekBar'
+import SleepButton from './SleepButton'
 import Segmented from './Segmented'
 import TrackList from './TrackList'
 
@@ -308,6 +309,7 @@ export default function PlayerPage(): JSX.Element {
             >
               <SimilarIcon size={16} /> Похожие
             </motion.button>
+            <SleepButton />
             <label className="volume">
               <VolumeIcon size={18} />
               <SeekBar value={volume} max={1} label="Громкость" onChange={setVolume} />
