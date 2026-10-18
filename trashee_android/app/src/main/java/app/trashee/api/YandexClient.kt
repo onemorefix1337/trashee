@@ -40,6 +40,8 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 
+enum class AddResult { Added, Exists }
+
 /** The server answered, and said no (or the answer made no sense). */
 class YandexError(message: String, val status: Int? = null) : Exception(message)
 
@@ -230,9 +232,45 @@ class YandexClient(private val token: String, private val http: OkHttpClient = s
             .filter { seen.add(it.key) }
     }
 
+    /** Makes an empty private playlist for the user. */
+    suspend fun createPlaylist(title: String): PlaylistInfo {
+        val id = userId()
+        val raw = request("/users/$id/playlists/create", CallSpec(form = mapOf("title" to title, "visibility" to "private")))
+        return normalizePlaylistInfo(raw, id) ?: throw YandexError("Яндекс не создал плейлист")
+    }
+
+    /**
+     * Puts a track at the end of one of the user's playlists. Yandex wants the revision the change is based on, so the
+     * playlist is read first, and once more if somebody else changed it in between. Says [AddResult.Exists] when it was already there.
+     */
+    suspend fun addToPlaylist(kind: Long, trackId: String, albumId: Long?): AddResult {
+        val id = userId()
+        for (attempt in 0..1) {
+            val current = request("/users/$id/playlists/$kind")
+            if (playlistHasTrack(current, trackId)) return AddResult.Exists
+            val count = current["trackCount"].int() ?: current["tracks"].list().size
+            val form = mapOf(
+                "kind" to kind.toString(),
+                "revision" to (current["revision"].int() ?: 1).toString(),
+                "diff" to playlistInsertDiff(trackId, albumId, count),
+            )
+            try {
+                request("/users/$id/playlists/$kind/change", CallSpec(form = form))
+                return AddResult.Added
+            } catch (error: YandexError) {
+                // A playlist changed from another device between the read and the write: look again, once.
+                val stale = error.status == 412 || error.message.orEmpty().contains("revision", ignoreCase = true)
+                if (attempt == 0 && stale) continue
+                throw error
+            }
+        }
+        throw YandexError("Не удалось изменить плейлист")
+    }
+
     suspend fun collection(ref: CollectionRef): Collection = when (ref) {
         is CollectionRef.Playlist -> {
-            val path = if (ref.uid != null && ref.kind != null) "/users/${ref.uid}/playlists/${ref.kind}" else "/playlist/${ref.uuid}"
+            val owner: Any? = ref.uid ?: ref.login
+            val path = if (owner != null && ref.kind != null) "/users/${java.net.URLEncoder.encode(owner.toString(), "UTF-8")}/playlists/${ref.kind}" else "/playlist/${ref.uuid}"
             val raw = request(path)
             val tracks = resolveTrackItems(raw["tracks"].list())
             Collection(

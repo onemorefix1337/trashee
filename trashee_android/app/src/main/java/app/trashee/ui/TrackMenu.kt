@@ -49,6 +49,7 @@ fun TrackMenuButton(track: Track) {
                 onClick = { open = false; run() },
             )
             item("Играть дальше") { app.engine.enqueueNext(listOf(track)) }
+            item("Добавить в плейлист") { nav.playlistTarget = track }
             item("Скачать файл") { downloadTrackFile(app, track) }
             track.albums.firstOrNull()?.let { album -> item("Альбом: ${album.title}") { nav.push(Route.Collection(CollectionRef.AlbumRef(album.id))) } }
             track.artists.forEach { artist -> item("Исполнитель: ${artist.name}") { nav.push(Route.Collection(CollectionRef.ArtistRef(artist.id))) } }

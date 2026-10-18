@@ -2,6 +2,7 @@ package app.trashee
 
 import android.Manifest
 import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
@@ -15,6 +16,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.core.content.ContextCompat
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import app.trashee.api.parseYandexLink
 import app.trashee.player.PlaybackService
 import app.trashee.ui.AppRoot
 import app.trashee.ui.LocalApp
@@ -40,6 +42,24 @@ class MainActivity : ComponentActivity() {
         setContent {
             CompositionLocalProvider(LocalApp provides application as TrasheeApp) { AppRoot() }
         }
+        takeLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takeLink(intent)
+    }
+
+    /** A Yandex Music link opened with this app, or shared to it from the Yandex Music app, a browser or a chat. */
+    private fun takeLink(intent: Intent?) {
+        val text = when (intent?.action) {
+            Intent.ACTION_VIEW -> intent.dataString
+            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
+            else -> null
+        } ?: return
+        // A shared text is often a sentence with the link somewhere inside it.
+        val url = Regex("https?://\\S+").find(text)?.value ?: text
+        parseYandexLink(url)?.let { (application as TrasheeApp).incomingLink.value = it }
     }
 
     // Connecting to the session keeps the playback service bound while the screen is open.

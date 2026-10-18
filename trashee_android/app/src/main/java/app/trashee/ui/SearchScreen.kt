@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.trashee.R
+import app.trashee.api.parseYandexLink
 import app.trashee.data.Track
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -61,10 +62,18 @@ fun SearchScreen(padding: PaddingValues) {
     val requester = remember { FocusRequester() }
     val accent = LocalAccent.current
 
+    val nav = LocalNav.current
     LaunchedEffect(query) {
         val text = query.trim()
         if (text.isEmpty()) {
             state = SearchState.Idle
+            return@LaunchedEffect
+        }
+        // A pasted Yandex Music link is opened instead of searched for.
+        parseYandexLink(text)?.let { link ->
+            delay(200)
+            query = ""
+            openYandexLink(app, nav, link)
             return@LaunchedEffect
         }
         delay(400)
@@ -93,7 +102,7 @@ fun SearchScreen(padding: PaddingValues) {
         ) {
             Ic(R.drawable.ic_search, tint = Palette.Muted, size = 22.dp)
             Box(Modifier.weight(1f)) {
-                if (query.isEmpty()) Text("Треки, исполнители, альбомы", color = Palette.Muted, fontSize = 16.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                if (query.isEmpty()) Text("Треки, исполнители или ссылка на Яндекс Музыку", color = Palette.Muted, fontSize = 16.sp, maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                 BasicTextField(
                     value = query,
                     onValueChange = { query = it },

@@ -16,6 +16,9 @@ import app.trashee.data.list
 import app.trashee.data.long
 import app.trashee.data.str
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 // Turns raw Yandex Music JSON into the app's types. Every field is optional on the wire, so be forgiving.
 
@@ -108,3 +111,30 @@ fun normalizeAlbumInfo(raw: JsonElement?): AlbumInfo? {
         kind = type?.takeIf { it != "single-album" },
     )
 }
+
+/** True when a playlist as Yandex returns it already holds the track (ids may come as "track:album"). */
+fun playlistHasTrack(raw: JsonElement?, trackId: String): Boolean =
+    raw["tracks"].list().any { item ->
+        ((item["id"] ?: item["track"]["id"]).str() ?: "").substringBefore(':') == trackId
+    }
+
+/** The `diff` Yandex expects for putting one track at position [at] of a playlist. */
+fun playlistInsertDiff(trackId: String, albumId: Long?, at: Int): String = buildJsonArray {
+    add(
+        buildJsonObject {
+            put("op", "insert")
+            put("at", at)
+            put(
+                "tracks",
+                buildJsonArray {
+                    add(
+                        buildJsonObject {
+                            put("id", trackId)
+                            if (albumId != null) put("albumId", albumId)
+                        },
+                    )
+                },
+            )
+        },
+    )
+}.toString()

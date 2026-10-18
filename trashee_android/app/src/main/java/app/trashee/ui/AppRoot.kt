@@ -152,6 +152,14 @@ private fun MainShell() {
     val hasTrack = ui.track != null
 
     LaunchedEffect(Unit) { Toasts.events.collect { snackbar.showSnackbar(it) } }
+    // A link shared to the app or opened with it is handled once the main screen is there.
+    LaunchedEffect(Unit) {
+        app.incomingLink.collect { link ->
+            if (link == null) return@collect
+            app.incomingLink.value = null
+            openYandexLink(app, nav, link)
+        }
+    }
     // Back closes the player, then steps out of pages, then returns to the first tab before leaving the app.
     BackHandler(enabled = nav.playerOpen || nav.canGoBack || nav.root != Route.Wave) {
         when {
@@ -215,6 +223,8 @@ private fun MainShell() {
                 enter = slideInVertically(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)) { it },
                 exit = slideOutVertically(tween(220)) { it },
             ) { PlayerScreen() }
+
+            nav.playlistTarget?.let { PlaylistPickerSheet(it) { nav.playlistTarget = null } }
         }
     }
 }

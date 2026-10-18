@@ -35,13 +35,18 @@ data class DeviceCode(
 
 /** Something with a list of tracks that can be opened, played and pinned. */
 sealed interface CollectionRef {
-    data class Playlist(val uid: Long?, val kind: Long?, val uuid: String?) : CollectionRef
+    /** [login] names the owner of a playlist found through a link; it stands in for [uid] until the page is loaded. */
+    data class Playlist(val uid: Long?, val kind: Long?, val uuid: String?, val login: String? = null) : CollectionRef
     data class AlbumRef(val id: Long) : CollectionRef
     data class ArtistRef(val id: Long) : CollectionRef
 }
 
 fun CollectionRef.key(): String = when (this) {
-    is CollectionRef.Playlist -> if (uid != null && kind != null) "playlist:$uid:$kind" else "playlist:$uuid"
+    is CollectionRef.Playlist -> when {
+        uid != null && kind != null -> "playlist:$uid:$kind"
+        login != null && kind != null -> "playlist:@$login:$kind"
+        else -> "playlist:$uuid"
+    }
     is CollectionRef.AlbumRef -> "album:$id"
     is CollectionRef.ArtistRef -> "artist:$id"
 }

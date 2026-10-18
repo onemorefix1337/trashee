@@ -31,6 +31,9 @@ class TrasheeApp : Application() {
     lateinit var engine: PlayerEngine
         private set
 
+    /** A Yandex Music link that opened or was shared to the app; the main screen takes it as soon as there is one. */
+    val incomingLink = kotlinx.coroutines.flow.MutableStateFlow<app.trashee.api.YandexLink?>(null)
+
     override fun onCreate() {
         super.onCreate()
         repo = Repo(this, scope)

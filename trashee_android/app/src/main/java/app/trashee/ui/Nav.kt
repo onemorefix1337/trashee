@@ -21,6 +21,9 @@ class Nav {
     val stack = mutableStateListOf<Route>(Route.Wave)
     var playerOpen by mutableStateOf(false)
 
+    /** The track the "add to playlist" sheet is open for, or null while it is closed. */
+    var playlistTarget by mutableStateOf<Track?>(null)
+
     /** Which way the last change went, so screens slide in from the right when going deeper and from the left when coming back. */
     var forward by mutableStateOf(true)
         private set
