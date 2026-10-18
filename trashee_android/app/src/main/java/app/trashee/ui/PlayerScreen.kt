@@ -134,7 +134,7 @@ fun PlayerScreen() {
     ) {
         Ambient(ui.playing)
         SpectrumBars(
-            read = { engine.spectrum.bands },
+            read = { engine.spectrum.bandsNow() },
             playing = ui.playing,
             modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(280.dp),
         )

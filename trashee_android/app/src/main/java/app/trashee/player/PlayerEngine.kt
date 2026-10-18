@@ -14,6 +14,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -21,6 +22,7 @@ import android.os.SystemClock
 import app.trashee.BuildConfig
 import app.trashee.data.Repo
 import app.trashee.data.Toasts
+import app.trashee.data.VISUALIZER_SHIFT_MAX_MS
 import app.trashee.data.Track
 import app.trashee.data.WaveEvent
 import kotlinx.coroutines.CancellationException
@@ -30,6 +32,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -38,6 +41,9 @@ private const val WAVE_REFILL_AT = 2
 private const val POSITION_TICK_MS = 250L
 private const val RESTART_THRESHOLD_MS = 3000L
 private const val PREFETCH_LAST_MS = 45_000L
+// The audio buffer is nearly, not quite, full while playing; and an upper bound for odd devices.
+private const val OUTPUT_FILL_MARGIN_MS = 30L
+private const val MAX_OUTPUT_DELAY_MS = 800L
 
 fun coverUrl(coverUri: String?, size: String = "400x400"): String? = coverUri?.let {
     // Real covers are bare "host/path" templates. A debug build may be pointed at a test server over plain http.
@@ -99,6 +105,10 @@ class PlayerEngine(
     private val _position = MutableStateFlow(0L)
     val position: StateFlow<Long> = _position.asStateFlow()
 
+    private val _outputDelayMs = MutableStateFlow(0L)
+    /** How long the audio output holds the sound before it is heard, as far as the player can tell. */
+    val outputDelayMs: StateFlow<Long> = _outputDelayMs.asStateFlow()
+
     private val _seeks = MutableStateFlow(0)
     /** Counts seeks, so whoever shows the position elsewhere (the paired computer) knows to refresh it. */
     val seeks: StateFlow<Int> = _seeks.asStateFlow()
@@ -117,6 +127,14 @@ class PlayerEngine(
     private var prefetchedFor: String? = null
 
     init {
+        // The sound waits in the audio output's buffer before it is heard: the bars are shown that much later.
+        player.addAnalyticsListener(object : AnalyticsListener {
+            override fun onAudioTrackInitialized(eventTime: AnalyticsListener.EventTime, audioTrackConfig: AudioSink.AudioTrackConfig) {
+                val bytesPerFrame = Integer.bitCount(audioTrackConfig.channelConfig).coerceAtLeast(1) * 2
+                val bufferMs = audioTrackConfig.bufferSize * 1000L / (bytesPerFrame * audioTrackConfig.sampleRate.coerceAtLeast(1))
+                _outputDelayMs.value = (bufferMs - OUTPUT_FILL_MARGIN_MS).coerceIn(0L, MAX_OUTPUT_DELAY_MS)
+            }
+        })
         player.addListener(object : Player.Listener {
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                 val index = player.currentMediaItemIndex
@@ -190,6 +208,11 @@ class PlayerEngine(
         })
 
         scope.launch { repo.eqGains.collect { equalizer.setGains(it) } }
+        // What the bars wait for: what the player says plus the user's own adjustment (Bluetooth adds delay nobody can measure).
+        scope.launch {
+            combine(_outputDelayMs, repo.visualizerShiftMs) { auto, shift -> (auto + shift).coerceIn(0L, MAX_OUTPUT_DELAY_MS + VISUALIZER_SHIFT_MAX_MS) }
+                .collect { spectrum.outputDelayMs = it }
+        }
 
         scope.launch {
             while (true) {

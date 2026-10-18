@@ -30,6 +30,15 @@ class SpectrumProcessor : BaseAudioProcessor() {
     var bands: FloatArray = FloatArray(SPECTRUM_BANDS)
         private set
 
+    private val history = SpectrumHistory()
+
+    /** How long the sound waits in the audio output before it is heard; set once the output is known. */
+    @Volatile
+    var outputDelayMs: Long = 0
+
+    /** The measurement of the sound that is being heard right now, or null while nothing is. */
+    fun bandsNow(nowNanos: Long = System.nanoTime()): FloatArray? = history.at(nowNanos - outputDelayMs * 1_000_000L)
+
     private val window = FloatArray(FFT_SIZE) { (0.5 - 0.5 * cos(2 * PI * it / (FFT_SIZE - 1))).toFloat() }
     private val samples = FloatArray(FFT_SIZE)
     private val re = FloatArray(FFT_SIZE)
@@ -95,6 +104,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
             result[band] = ((db + FLOOR_DB) / FLOOR_DB).coerceIn(0f, 1f)
         }
         bands = result
+        history.add(System.nanoTime(), result)
     }
 
     /** In-place radix-2 FFT of [re] and [im]. */
@@ -142,6 +152,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
     override fun onFlush() {
         filled = 0
         bands = FloatArray(SPECTRUM_BANDS)
+        history.clear()
     }
 
     override fun onReset() {

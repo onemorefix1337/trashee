@@ -31,6 +31,9 @@ private const val RESTORE_RETRY_MS = 2000L
 
 private const val RECONNECT_MS = 30_000L
 
+const val VISUALIZER_SHIFT_MIN_MS = -200
+const val VISUALIZER_SHIFT_MAX_MS = 600
+
 /** Login state, the API client, the user's likes and settings: everything the screens share. */
 class Repo(context: Context, private val scope: CoroutineScope) {
     /** The collections saved for offline listening; set once the app has built them. */
@@ -58,6 +61,10 @@ class Repo(context: Context, private val scope: CoroutineScope) {
     )
     /** One gain in dB for each of the ten equalizer bands. */
     val eqGains: StateFlow<List<Float>> = _eqGains.asStateFlow()
+
+    private val _visualizerShiftMs = MutableStateFlow(prefs.getInt("visualizerShiftMs", 0).coerceIn(VISUALIZER_SHIFT_MIN_MS, VISUALIZER_SHIFT_MAX_MS))
+    /** How much later (or, below zero, earlier) the bars move than the player's own estimate of when the sound is heard. */
+    val visualizerShiftMs: StateFlow<Int> = _visualizerShiftMs.asStateFlow()
 
     private val _offlineMode = MutableStateFlow(false)
     /** Signed in, but Yandex cannot be reached: only what was saved for offline listening works. */
@@ -90,6 +97,12 @@ class Repo(context: Context, private val scope: CoroutineScope) {
         val gains = sanitizeEqGains(value)
         _eqGains.value = gains
         prefs.edit().putString("eqGains", gains.joinToString(",")).apply()
+    }
+
+    fun setVisualizerShift(value: Int) {
+        val shift = value.coerceIn(VISUALIZER_SHIFT_MIN_MS, VISUALIZER_SHIFT_MAX_MS)
+        _visualizerShiftMs.value = shift
+        prefs.edit().putInt("visualizerShiftMs", shift).apply()
     }
 
     fun setPrefetchNext(value: Boolean) {

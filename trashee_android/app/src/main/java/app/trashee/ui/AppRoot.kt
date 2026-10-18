@@ -186,7 +186,7 @@ private fun MainShell() {
 
     CompositionLocalProvider(LocalNav provides nav) {
         Box(Modifier.fillMaxSize()) {
-            Ambient(ui.playing)
+            Ambient(ui.playing, animate = !nav.playerOpen)
 
             AnimatedContent(
                 targetState = nav.current,

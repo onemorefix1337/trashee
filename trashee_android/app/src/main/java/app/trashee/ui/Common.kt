@@ -19,11 +19,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,6 +46,8 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -184,31 +189,62 @@ fun <T> Segmented(options: List<Pair<T, String>>, value: T, onChange: (T) -> Uni
     }
 }
 
-/** Slowly drifting color blobs behind the interface; they wake up while music plays. No blur filters: just gradients. */
+/** One way of the slow drift, 0 to 1 and back, over [period] ms: what a linear reversing animation does. */
+private fun drift(timeMs: Long, period: Long): Float {
+    val phase = (timeMs % (2 * period)).toFloat() / period
+    return if (phase <= 1f) phase else 2f - phase
+}
+
+private const val AMBIENT_SCALE = 4f
+private const val AMBIENT_STEP_MS = 42L
+
+/**
+ * Slowly drifting color blobs behind the interface; they brighten while music plays. The blobs are soft, so they are
+ * drawn at a sixteenth of the pixels into a texture that the screen only stretches, and they move about 24 times a
+ * second: three full-screen gradients redrawn on every refresh of a 120 Hz screen took most of a frame by themselves.
+ * [animate] false freezes them (under the full-screen player nobody sees them move).
+ */
 @Composable
-fun Ambient(playing: Boolean, modifier: Modifier = Modifier) {
+fun Ambient(playing: Boolean, modifier: Modifier = Modifier, animate: Boolean = true) {
     val accent = LocalAccent.current
-    val transition = rememberInfiniteTransition(label = "ambient")
-    val a by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(26_000, easing = LinearEasing), RepeatMode.Reverse), label = "driftA")
-    val b by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(32_000, easing = LinearEasing), RepeatMode.Reverse), label = "driftB")
-    val c by transition.animateFloat(0f, 1f, infiniteRepeatable(tween(38_000, easing = LinearEasing), RepeatMode.Reverse), label = "driftC")
     val strength by animateFloatAsState(if (playing) 0.34f else 0.18f, tween(1400), label = "strength")
-    Box(
-        modifier.fillMaxSize().drawBehind {
-            fun blob(cx: Float, cy: Float, radius: Float) = drawCircle(
-                brush = Brush.radialGradient(
-                    listOf(accent.copy(alpha = strength), Color.Transparent),
-                    center = Offset(cx, cy),
-                    radius = radius,
-                ),
-                radius = radius,
-                center = Offset(cx, cy),
-            )
-            blob(size.width * (0.1f + 0.5f * a), size.height * (0.05f + 0.2f * b), size.width * 0.9f)
-            blob(size.width * (0.9f - 0.5f * b), size.height * (0.35f + 0.2f * c), size.width * 0.8f)
-            blob(size.width * (0.3f + 0.4f * c), size.height * (0.95f - 0.25f * a), size.width * 1.0f)
-        },
-    )
+    var time by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(animate) {
+        while (animate) {
+            time = android.os.SystemClock.uptimeMillis()
+            kotlinx.coroutines.delay(AMBIENT_STEP_MS)
+        }
+    }
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        Box(
+            Modifier
+                .align(Alignment.TopStart)
+                .requiredSize(maxWidth / AMBIENT_SCALE, maxHeight / AMBIENT_SCALE)
+                .graphicsLayer {
+                    scaleX = AMBIENT_SCALE
+                    scaleY = AMBIENT_SCALE
+                    transformOrigin = TransformOrigin(0f, 0f)
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+                .drawBehind {
+                    val a = drift(time, 26_000)
+                    val b = drift(time, 32_000)
+                    val c = drift(time, 38_000)
+                    fun blob(cx: Float, cy: Float, radius: Float) = drawCircle(
+                        brush = Brush.radialGradient(
+                            listOf(accent.copy(alpha = strength), Color.Transparent),
+                            center = Offset(cx, cy),
+                            radius = radius,
+                        ),
+                        radius = radius,
+                        center = Offset(cx, cy),
+                    )
+                    blob(size.width * (0.1f + 0.5f * a), size.height * (0.05f + 0.2f * b), size.width * 0.9f)
+                    blob(size.width * (0.9f - 0.5f * b), size.height * (0.35f + 0.2f * c), size.width * 0.8f)
+                    blob(size.width * (0.3f + 0.4f * c), size.height * (0.95f - 0.25f * a), size.width * 1.0f)
+                },
+        )
+    }
 }
 
 /** Thin seek bar: drag or tap; reports the position only when the finger lifts. */
