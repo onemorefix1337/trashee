@@ -141,7 +141,7 @@ function planInstall(assets: ReleaseAsset[]): { asset: ReleaseAsset | null; rest
   return { asset: installer, restart: installer !== null && appImageFile() !== null }
 }
 
-export function appInfo(): AppInfo {
+function appInfo(): AppInfo {
   return {
     version: app.getVersion(),
     commit: typeof __BUILD_COMMIT__ === 'undefined' ? 'dev' : __BUILD_COMMIT__,
@@ -156,7 +156,7 @@ export function appInfo(): AppInfo {
 }
 
 /** Looks for a newer release. A manual check always shows its result; a background one stays quiet. */
-export async function checkForUpdates(manual: boolean): Promise<void> {
+async function checkForUpdates(manual: boolean): Promise<void> {
   if (state.status === 'checking' || state.status === 'downloading' || state.status === 'ready') {
     if (manual && state.info) publish({ prompt: true })
     return
@@ -339,7 +339,7 @@ async function launch(file: string): Promise<void> {
   if (problem) throw new Error(`Не удалось открыть установщик: ${problem}`)
 }
 
-export async function installUpdate(): Promise<void> {
+async function installUpdate(): Promise<void> {
   const current = release
   if (!current || state.status === 'downloading') return
   if (!current.asset || !current.info.canInstall) {

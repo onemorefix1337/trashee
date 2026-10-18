@@ -4,7 +4,7 @@ export const YANDEX_SOURCE: LyricsSource = { name: 'Яндекс Музыка' }
 export const LRCLIB_SOURCE: LyricsSource = { name: 'LRCLIB', url: 'https://lrclib.net' }
 export const OVH_SOURCE: LyricsSource = { name: 'lyrics.ovh', url: 'https://lyrics.ovh' }
 
-export const NO_LYRICS: Lyrics = { synced: null, text: null, source: null }
+const NO_LYRICS: Lyrics = { synced: null, text: null, source: null }
 
 export interface LyricsProvider {
   /** Plain-text-only sources are not asked once some plain text is already in hand. */

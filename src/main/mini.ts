@@ -170,7 +170,7 @@ function setVisible(value: boolean): void {
   if (player && !player.isDestroyed()) player.webContents.send('mini:visible', value)
 }
 
-export async function showMini(): Promise<void> {
+async function showMini(): Promise<void> {
   clearTimeout(hideTimer)
   if (!window || window.isDestroyed()) window = createWindow()
   const target = window
@@ -185,7 +185,7 @@ export async function showMini(): Promise<void> {
   setVisible(true)
 }
 
-export function hideMini(): void {
+function hideMini(): void {
   if (!visible || !window || window.isDestroyed()) return
   setVisible(false)
   window.webContents.send('mini:hide')
@@ -198,7 +198,7 @@ function finishHide(): void {
   if (!visible && window && !window.isDestroyed()) window.hide()
 }
 
-export function toggleMini(): void {
+function toggleMini(): void {
   if (visible) hideMini()
   else void showMini()
 }

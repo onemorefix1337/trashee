@@ -5,7 +5,7 @@ import { artistNames, publicCoverUrl } from '../lib/cover'
 import { getSettings } from './settings'
 import { showToast } from './toast'
 
-export type Repeat = 'off' | 'all' | 'one'
+type Repeat = 'off' | 'all' | 'one'
 
 export interface PlayerState {
   queue: Track[]

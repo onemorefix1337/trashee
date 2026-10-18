@@ -13,7 +13,7 @@ export function miniShortcut(platform: string): { accelerator: string; label: st
 
 /** The default size of the card; the user can change it within MINI_LIMITS. */
 export const MINI_SIZE = { width: 420, height: 188 }
-export const MINI_MARGIN = 32
+const MINI_MARGIN = 32
 export const MINI_LIMITS = {
   width: { min: 320, max: 640 },
   height: { min: 150, max: 260 },

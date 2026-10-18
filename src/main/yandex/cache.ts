@@ -23,7 +23,7 @@ export interface StreamSource {
   key?: string
 }
 
-export const EXT_BY_CODEC: Record<string, string> = {
+const EXT_BY_CODEC: Record<string, string> = {
   mp3: 'mp3',
   aac: 'aac',
   'he-aac': 'aac',
@@ -33,7 +33,7 @@ export const EXT_BY_CODEC: Record<string, string> = {
   'flac-mp4': 'm4a'
 }
 
-export const MIME_BY_EXT: Record<string, string> = {
+const MIME_BY_EXT: Record<string, string> = {
   mp3: 'audio/mpeg',
   aac: 'audio/aac',
   flac: 'audio/flac',

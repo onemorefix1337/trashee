@@ -330,6 +330,9 @@ input:focus-visible {
   grid-area: titlebar;
   position: relative;
   z-index: 2;
+  display: flex;
+  align-items: center;
+  padding-left: 20px;
   -webkit-app-region: drag;
 }
 
@@ -1833,11 +1836,6 @@ input[type='range'].eq-slider:hover::-webkit-slider-thumb {
 
 /* ---------- back button, toast ---------- */
 
-.titlebar {
-  display: flex;
-  align-items: center;
-  padding-left: 20px;
-}
 .back-btn {
   display: grid;
   place-items: center;

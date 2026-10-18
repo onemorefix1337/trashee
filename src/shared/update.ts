@@ -124,8 +124,7 @@ export interface UpdateInfo {
   restart: boolean
 }
 
-export type UpdateStatus =
-  'idle' | 'checking' | 'none' | 'available' | 'downloading' | 'ready' | 'error'
+type UpdateStatus = 'idle' | 'checking' | 'none' | 'available' | 'downloading' | 'ready' | 'error'
 
 export interface UpdateState {
   status: UpdateStatus
