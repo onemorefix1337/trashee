@@ -1,0 +1,394 @@
+@file:OptIn(UnstableApi::class)
+
+package app.trashee.player
+
+import android.app.Application
+import android.content.Context
+import android.net.Uri
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.audio.AudioSink
+import androidx.media3.exoplayer.audio.DefaultAudioSink
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import app.trashee.data.Repo
+import app.trashee.data.Toasts
+import app.trashee.data.Track
+import app.trashee.data.WaveEvent
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+
+private const val MAX_CONSECUTIVE_ERRORS = 3
+private const val WAVE_REFILL_AT = 2
+private const val POSITION_TICK_MS = 250L
+private const val RESTART_THRESHOLD_MS = 3000L
+private const val PREFETCH_LAST_MS = 45_000L
+
+fun coverUrl(coverUri: String?, size: String = "400x400"): String? =
+    coverUri?.let { "https://${it.replace("%%", size)}" }
+
+data class PlayerUi(
+    val queue: List<Track> = emptyList(),
+    val index: Int = -1,
+    val playing: Boolean = false,
+    val loading: Boolean = false,
+    val shuffle: Boolean = false,
+    val repeat: Int = Player.REPEAT_MODE_OFF,
+    val durationMs: Long = 0,
+    val wave: Boolean = false,
+    val error: String? = null,
+) {
+    val track: Track? get() = queue.getOrNull(index)
+}
+
+private class WaveSession(val id: String, var batchId: String)
+
+/** The one player of the app: the queue, Моя волна, likes. The notification and lock screen mirror it. */
+class PlayerEngine(
+    app: Application,
+    private val repo: Repo,
+    private val caches: Caches,
+    private val scope: CoroutineScope,
+) {
+    /** What the visualizer draws: measured from the sound this player outputs. */
+    val spectrum = SpectrumProcessor()
+
+    val player: ExoPlayer = run {
+        val renderers = object : DefaultRenderersFactory(app) {
+            override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
+                DefaultAudioSink.Builder(context)
+                    .setEnableFloatOutput(false) // the measurement reads 16-bit samples
+                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                    .setAudioProcessors(arrayOf(spectrum))
+                    .build()
+        }
+        ExoPlayer.Builder(app, renderers)
+            .setMediaSourceFactory(DefaultMediaSourceFactory(caches.playback))
+            .setAudioAttributes(
+                AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),
+                true,
+            )
+            .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .build()
+    }
+
+    private val _ui = MutableStateFlow(PlayerUi())
+    val ui: StateFlow<PlayerUi> = _ui.asStateFlow()
+
+    private val _position = MutableStateFlow(0L)
+    val position: StateFlow<Long> = _position.asStateFlow()
+
+
+    private var wave: WaveSession? = null
+    private var refilling = false
+    private var consecutiveErrors = 0
+    private var lastTrack: Track? = null
+    private var lastPositionMs = 0L
+    private var prefetchedFor: String? = null
+
+    init {
+        player.addListener(object : Player.Listener {
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val index = player.currentMediaItemIndex
+                prefetchedFor = null
+                _ui.update { it.copy(index = index, error = null, durationMs = it.queue.getOrNull(index)?.durationMs ?: 0) }
+                _position.value = 0
+                val track = _ui.value.track
+                val previous = lastTrack
+                lastTrack = track
+                if (wave != null && track != null) {
+                    if (previous != null && previous.id != track.id) {
+                        when (reason) {
+                            Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ->
+                                feedback(WaveEvent.TrackFinished, previous, previous.durationMs / 1000.0)
+                            Player.MEDIA_ITEM_TRANSITION_REASON_SEEK ->
+                                feedback(WaveEvent.Skip, previous, lastPositionMs / 1000.0)
+                        }
+                    }
+                    feedback(WaveEvent.TrackStarted, track)
+                    if (_ui.value.queue.size - index <= WAVE_REFILL_AT) refillWave()
+                }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                if (isPlaying) consecutiveErrors = 0
+                _ui.update { it.copy(playing = isPlaying) }
+            }
+
+            override fun onPlaybackStateChanged(state: Int) {
+                _ui.update { it.copy(loading = state == Player.STATE_BUFFERING) }
+                if (state == Player.STATE_READY && player.duration != C.TIME_UNSET) {
+                    _ui.update { it.copy(durationMs = player.duration) }
+                }
+            }
+
+            override fun onShuffleModeEnabledChanged(enabled: Boolean) {
+                _ui.update { it.copy(shuffle = enabled) }
+            }
+
+            override fun onRepeatModeChanged(mode: Int) {
+                _ui.update { it.copy(repeat = mode) }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                consecutiveErrors += 1
+                _ui.update { it.copy(playing = false, loading = false, error = "Не удалось воспроизвести трек") }
+                if (consecutiveErrors < MAX_CONSECUTIVE_ERRORS && player.hasNextMediaItem()) {
+                    scope.launch {
+                        delay(800)
+                        player.seekToNextMediaItem()
+                        player.prepare()
+                        player.play()
+                    }
+                }
+            }
+        })
+
+        scope.launch {
+            while (true) {
+                delay(POSITION_TICK_MS)
+                if (player.isPlaying) {
+                    lastPositionMs = player.currentPosition
+                    _position.value = lastPositionMs
+                    maybePrefetch()
+                }
+            }
+        }
+    }
+
+    /** Fetches the next track in the background from the middle of this one at the latest, so it starts without waiting. */
+    private fun maybePrefetch() {
+        if (!repo.prefetchNext.value) return
+        val nextIndex = player.nextMediaItemIndex // follows the shuffled order too
+        if (nextIndex == C.INDEX_UNSET) return
+        val upcoming = _ui.value.queue.getOrNull(nextIndex) ?: return
+        if (upcoming.id == prefetchedFor || !upcoming.available) return
+        val duration = player.duration
+        if (duration == C.TIME_UNSET || duration <= 0) return
+        if (duration - player.currentPosition <= PREFETCH_LAST_MS || player.currentPosition >= duration / 2) {
+            prefetchedFor = upcoming.id
+            caches.prefetch(upcoming.id, scope)
+        }
+    }
+
+    private fun mediaItem(track: Track): MediaItem = MediaItem.Builder()
+        .setMediaId(track.id)
+        .setUri(trackUri(track.id))
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(track.title)
+                .setArtist(track.artistNames)
+                .setAlbumTitle(track.albums.firstOrNull()?.title)
+                .setArtworkUri(coverUrl(track.coverUri)?.let(Uri::parse))
+                .setDurationMs(track.durationMs)
+                .setIsPlayable(true)
+                .build(),
+        )
+        .build()
+
+    /* ---------- wave feedback ---------- */
+
+    private fun feedback(type: WaveEvent, track: Track?, playedSeconds: Double? = null) {
+        val session = wave ?: return
+        scope.launch {
+            runCatching { repo.api?.waveFeedback(session.id, session.batchId, type, track?.id, playedSeconds) }
+        }
+    }
+
+    private fun refillWave() {
+        val session = wave ?: return
+        val track = _ui.value.track ?: return
+        if (refilling) return
+        refilling = true
+        scope.launch {
+            try {
+                val batch = repo.api?.waveNext(session.id, track.id) ?: return@launch
+                if (wave !== session) return@launch
+                val known = _ui.value.queue.map { it.id }.toSet()
+                val fresh = batch.tracks.filter { it.available && it.id !in known }
+                session.batchId = batch.batchId
+                if (fresh.isNotEmpty()) {
+                    _ui.update { it.copy(queue = it.queue + fresh) }
+                    player.addMediaItems(fresh.map(::mediaItem))
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                // the next track change will retry
+            } finally {
+                refilling = false
+            }
+        }
+    }
+
+    /* ---------- starting playback ---------- */
+
+    fun playTracks(tracks: List<Track>, startIndex: Int = 0) {
+        val playable = tracks.filter { it.available }
+        val start = playable.indexOf(tracks.getOrNull(startIndex))
+        if (playable.isEmpty() || start < 0) return
+        wave = null
+        lastTrack = null
+        consecutiveErrors = 0
+        _ui.update { it.copy(queue = playable, index = start, wave = false, error = null, durationMs = playable[start].durationMs) }
+        player.setMediaItems(playable.map(::mediaItem), start, 0)
+        player.shuffleModeEnabled = _ui.value.shuffle
+        player.prepare()
+        player.play()
+    }
+
+    fun startWave(seed: String? = null) {
+        scope.launch {
+            _ui.update { it.copy(loading = true, error = null) }
+            try {
+                val client = repo.api ?: error("Не выполнен вход")
+                val batch = if (seed != null) client.waveStart(seed) else client.waveStart()
+                val tracks = batch.tracks.filter { it.available }
+                if (tracks.isEmpty()) error("empty wave")
+                consecutiveErrors = 0
+                lastTrack = null
+                wave = WaveSession(batch.sessionId, batch.batchId)
+                player.shuffleModeEnabled = false
+                _ui.update { it.copy(queue = tracks, index = 0, wave = true, loading = false, durationMs = tracks[0].durationMs) }
+                feedback(WaveEvent.RadioStarted, null)
+                player.setMediaItems(tracks.map(::mediaItem), 0, 0)
+                player.prepare()
+                player.play()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _ui.update { it.copy(loading = false, error = "Не удалось запустить Мою волну") }
+            }
+        }
+    }
+
+    /** Puts tracks right after the current one and leaves the rest of the queue as it was. */
+    fun enqueueNext(tracks: List<Track>) {
+        val playable = tracks.filter { it.available }
+        val state = _ui.value
+        if (state.index < 0) {
+            playTracks(playable)
+            return
+        }
+        val upcoming = state.queue.drop(state.index + 1).map { it.id }.toSet()
+        val fresh = playable.filter { it.id != state.track?.id && it.id !in upcoming }
+        if (fresh.isEmpty()) {
+            Toasts.say("Эти треки уже в очереди")
+            return
+        }
+        val at = state.index + 1
+        _ui.update { it.copy(queue = it.queue.take(at) + fresh + it.queue.drop(at)) }
+        player.addMediaItems(at, fresh.map(::mediaItem))
+        Toasts.say("Добавлено в очередь: ${fresh.size}")
+    }
+
+    /* ---------- controls ---------- */
+
+    fun toggle() {
+        if (player.mediaItemCount == 0) return
+        if (player.isPlaying) {
+            player.pause()
+        } else {
+            if (player.playbackState == Player.STATE_IDLE) player.prepare()
+            player.play()
+        }
+    }
+
+    fun next() {
+        when {
+            player.hasNextMediaItem() -> player.seekToNextMediaItem()
+            wave != null -> scope.launch {
+                refillWave()
+                delay(1200)
+                if (player.hasNextMediaItem()) player.seekToNextMediaItem()
+            }
+            else -> {
+                player.pause()
+                player.seekTo(0)
+            }
+        }
+    }
+
+    fun previous() {
+        if (player.currentPosition > RESTART_THRESHOLD_MS || !player.hasPreviousMediaItem()) player.seekTo(0)
+        else player.seekToPreviousMediaItem()
+    }
+
+    fun seekTo(positionMs: Long) {
+        player.seekTo(positionMs.coerceAtLeast(0))
+        _position.value = positionMs
+    }
+
+    fun jumpTo(index: Int) {
+        if (index in 0 until player.mediaItemCount) {
+            player.seekTo(index, 0)
+            player.play()
+        }
+    }
+
+    fun toggleShuffle() {
+        if (wave != null) return
+        player.shuffleModeEnabled = !player.shuffleModeEnabled
+    }
+
+    fun cycleRepeat() {
+        player.repeatMode = when (player.repeatMode) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+    }
+
+    fun likeCurrent() {
+        val track = _ui.value.track ?: return
+        scope.launch { repo.toggleLike(track) }
+    }
+
+    /** "Not for me": tells Yandex, skips the track, and offers to take it back. */
+    fun dislikeCurrent() {
+        val track = _ui.value.track ?: return
+        val played = player.currentPosition / 1000.0
+        val client = repo.api
+        if (client == null) {
+            Toasts.say("Нет связи")
+            return
+        }
+        scope.launch {
+            try {
+                client.setDislike(track.id, true)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                Toasts.say("Не удалось отметить «Не нравится»")
+                return@launch
+            }
+            feedback(WaveEvent.Dislike, track, played)
+            Toasts.say("Больше не покажем такое")
+            // The dislike already told the radio everything a skip would, so skip quietly.
+            lastTrack = null
+            next()
+        }
+    }
+
+    fun stop() {
+        wave = null
+        lastTrack = null
+        player.stop()
+        player.clearMediaItems()
+        _ui.value = PlayerUi(shuffle = player.shuffleModeEnabled, repeat = player.repeatMode)
+        _position.value = 0
+    }
+}
