@@ -5,6 +5,7 @@ import app.trashee.data.OfflineLibrary
 import app.trashee.data.Repo
 import app.trashee.player.Caches
 import app.trashee.update.Updater
+import app.trashee.widget.keepWidgetCurrent
 import app.trashee.player.PlayerEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +45,7 @@ class TrasheeApp : Application() {
                 .components { add(OfflineCovers(offline)) }
                 .build()
         }
+        keepWidgetCurrent(this)
         updater = Updater(this, scope)
         updater.startBackgroundChecks()
         repo.restore()

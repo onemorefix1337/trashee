@@ -102,6 +102,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.coil.network.okhttp)
     implementation(libs.androidx.palette)
+    implementation(libs.androidx.glance.appwidget)
 
     testImplementation(libs.junit)
 }

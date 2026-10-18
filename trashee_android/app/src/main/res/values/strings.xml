@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">trashee</string>
+    <string name="widget_description">Обложка, название и кнопки управления музыкой</string>
 </resources>
