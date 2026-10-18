@@ -3,3 +3,4 @@
 *.png binary
 *.icns binary
 *.ico binary
+*.bat text eol=crlf
