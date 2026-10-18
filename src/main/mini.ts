@@ -7,6 +7,7 @@ import {
   anchorPosition,
   isMiniAnchor,
   isMiniCommand,
+  miniShortcut,
   sanitizeMiniConfig,
   sanitizeMiniTrack,
   type MiniConfig,
@@ -14,7 +15,7 @@ import {
 } from '../shared/mini'
 import { restoreBounds } from '../shared/window-bounds'
 
-const SHORTCUT = 'CommandOrControl+Alt+M'
+const SHORTCUT = miniShortcut(process.platform).accelerator
 const SAVE_DELAY_MS = 300
 // The card plays its closing animation first; if it never answers, the window hides anyway.
 const HIDE_FALLBACK_MS = 450

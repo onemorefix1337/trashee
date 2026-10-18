@@ -4,6 +4,7 @@ import {
   MINI_SIZE,
   anchorPosition,
   isMiniCommand,
+  miniShortcut,
   sanitizeMiniConfig,
   sanitizeMiniTrack
 } from './mini.ts'
@@ -63,4 +64,13 @@ test('track state is reduced to plain, bounded fields', () => {
   assert.equal(track?.playing, false)
   assert.equal(track?.liked, true)
   assert.equal('extra' in (track ?? {}), false)
+})
+
+test('Windows has its own shortcut for the mini player, everyone else keeps the old one', () => {
+  assert.deepEqual(miniShortcut('win32'), {
+    accelerator: 'Control+Shift+1',
+    label: 'Ctrl + Shift + 1'
+  })
+  assert.equal(miniShortcut('darwin').accelerator, 'CommandOrControl+Alt+M')
+  assert.equal(miniShortcut('linux').accelerator, 'CommandOrControl+Alt+M')
 })

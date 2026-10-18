@@ -1,5 +1,6 @@
 import type { JSX, ReactNode } from 'react'
 import { motion } from 'motion/react'
+import { miniShortcut } from '../../../shared/mini'
 import { SPEEDS, type MotionLevel } from '../../../shared/settings'
 import type { Account, Quality } from '../../../shared/types'
 import { formatBytes as sizeText, removeOffline, useCacheInfo } from '../store/offline'
@@ -29,7 +30,7 @@ const SPEED_OPTIONS = SPEEDS.map((value) => ({
   label: value === 1 ? 'Обычная' : `×${value}`
 }))
 
-const SHORTCUTS: [string, string][] = [
+const shortcuts = (): [string, string][] => [
   ['Пробел', 'Пауза и воспроизведение'],
   ['← →', 'Перемотка на 5 секунд'],
   ['⌘/Ctrl + ← →', 'Предыдущий и следующий трек'],
@@ -37,7 +38,7 @@ const SHORTCUTS: [string, string][] = [
   ['L', 'Лайк текущему треку'],
   ['D', 'Не нравится: пропустить трек'],
   ['Alt + ←', 'Назад по страницам'],
-  ['⌘/Ctrl + Alt + M', 'Мини-плеер поверх всех окон, из любого приложения'],
+  [miniShortcut(window.api.platform).label, 'Мини-плеер поверх всех окон, из любого приложения'],
   ['Медиаклавиши', 'Работают и когда окно не в фокусе']
 ]
 
@@ -348,7 +349,7 @@ export default function SettingsPage({
       <CacheSection index={3} />
 
       <Section title="Горячие клавиши" index={4}>
-        {SHORTCUTS.map(([keys, action]) => (
+        {shortcuts().map(([keys, action]) => (
           <div key={keys} className="setting-row shortcut">
             <kbd>{keys}</kbd>
             <span className="muted">{action}</span>

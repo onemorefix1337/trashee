@@ -3,6 +3,14 @@
 export type MiniAnchor = 'tl' | 'tc' | 'tr' | 'bl' | 'bc' | 'br'
 
 export const MINI_ANCHORS: MiniAnchor[] = ['tl', 'tc', 'tr', 'bl', 'bc', 'br']
+
+/** The global shortcut that shows and hides the card, and how to write it for the user. Windows has its own. */
+export function miniShortcut(platform: string): { accelerator: string; label: string } {
+  return platform === 'win32'
+    ? { accelerator: 'Control+Shift+1', label: 'Ctrl + Shift + 1' }
+    : { accelerator: 'CommandOrControl+Alt+M', label: '⌘/Ctrl + Alt + M' }
+}
+
 export const MINI_SIZE = { width: 420, height: 188 }
 export const MINI_MARGIN = 32
 
