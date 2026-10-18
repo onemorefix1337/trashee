@@ -66,11 +66,7 @@ function Cover({ track, playing }: { track: Track; playing: boolean }): JSX.Elem
   }
 
   return (
-    <div
-      className={`cover-stage${playing ? ' live' : ''}`}
-      onMouseMove={onMove}
-      onMouseLeave={onLeave}
-    >
+    <div className="cover-stage" onMouseMove={onMove} onMouseLeave={onLeave}>
       <motion.div
         className={`cover${playing ? ' live' : ''}`}
         style={{ rotateX: tiltX, rotateY: tiltY }}

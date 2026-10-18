@@ -4,12 +4,8 @@ import { getAnalyser, usePlayer } from '../store/player'
 const BARS = 72
 const FIRST_BIN = 2
 const LAST_BIN = 300
-// Drawn thirty times a second: the eye cannot tell, and the canvas costs half as much. The fall of a bar per frame is
-// the square of the old per-frame factor so that it takes the same time.
-const FRAME_MS = 33
-const RELEASE = 0.81
+const RELEASE = 0.9
 const SETTLED = 0.004
-const MAX_PIXEL_RATIO = 1.5
 
 /** Log-spaced spectrum bars along the bottom edge, tinted with the accent color of the cover. */
 export default function Visualizer(): JSX.Element {
@@ -33,10 +29,9 @@ export default function Visualizer(): JSX.Element {
     let rgb = '255, 255, 255'
     let frame = 0
     let raf = 0
-    let lastDrawn = 0
 
     const resize = (): void => {
-      const ratio = Math.min(window.devicePixelRatio || 1, MAX_PIXEL_RATIO)
+      const ratio = window.devicePixelRatio || 1
       const box = element.getBoundingClientRect()
       width = box.width
       height = box.height
@@ -54,12 +49,7 @@ export default function Visualizer(): JSX.Element {
       rgb = `${channel('--ar')}, ${channel('--ag')}, ${channel('--ab')}`
     }
 
-    const draw = (now: number): void => {
-      if (now - lastDrawn < FRAME_MS - 2) {
-        raf = requestAnimationFrame(draw)
-        return
-      }
-      lastDrawn = now
+    const draw = (): void => {
       const analyser = playing ? getAnalyser() : null
       if (analyser) {
         spectrum ??= new Uint8Array(analyser.frequencyBinCount)
@@ -80,7 +70,7 @@ export default function Visualizer(): JSX.Element {
         peak = Math.max(peak, levels[i])
       }
 
-      if (frame++ % 10 === 0) readColor()
+      if (frame++ % 20 === 0) readColor()
       context.clearRect(0, 0, width, height)
       const fill = context.createLinearGradient(0, height, 0, 0)
       fill.addColorStop(0, `rgba(${rgb}, 0.4)`)

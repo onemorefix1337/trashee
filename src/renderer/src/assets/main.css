@@ -125,13 +125,13 @@ input:focus-visible {
     transform: scale(1.08);
   }
 }
-@keyframes glow-pulse {
+@keyframes glow {
   0%,
   100% {
-    opacity: 0.5;
+    box-shadow: 0 30px 80px -20px rgb(var(--accent) / 0.35);
   }
   50% {
-    opacity: 1;
+    box-shadow: 0 38px 120px -14px rgb(var(--accent) / 0.65);
   }
 }
 @keyframes glow-small {
@@ -260,42 +260,34 @@ input:focus-visible {
   z-index: 0;
   pointer-events: none;
 }
-/*
- * Soft glows made of a gradient, not of a blurred disc: a blur filter on three huge moving layers is
- * recomputed on the GPU every frame, a gradient is not. Each glow is half as big again as the disc it replaces.
- */
 .ambient span {
   position: absolute;
   border-radius: 50%;
-  background: radial-gradient(
-    closest-side,
-    rgb(var(--accent) / 0.2),
-    rgb(var(--accent) / 0.1) 45%,
-    transparent
-  );
+  background: rgb(var(--accent) / 0.2);
+  filter: blur(90px);
   opacity: 0.5;
   transition: opacity 1.4s ease;
   will-change: transform;
 }
 .ambient span:nth-child(1) {
-  width: 960px;
-  height: 960px;
-  left: calc(-8% - 160px);
-  top: calc(-22% - 160px);
+  width: 640px;
+  height: 640px;
+  left: -8%;
+  top: -22%;
   animation: drift-a 26s ease-in-out infinite alternate;
 }
 .ambient span:nth-child(2) {
-  width: 780px;
-  height: 780px;
-  right: calc(-10% - 130px);
-  top: calc(8% - 130px);
+  width: 520px;
+  height: 520px;
+  right: -10%;
+  top: 8%;
   animation: drift-b 32s ease-in-out infinite alternate;
 }
 .ambient span:nth-child(3) {
-  width: 1080px;
-  height: 1080px;
-  left: calc(28% - 180px);
-  bottom: calc(-38% - 180px);
+  width: 720px;
+  height: 720px;
+  left: 28%;
+  bottom: -38%;
   animation: drift-c 38s ease-in-out infinite alternate;
 }
 .ambient.live span {
@@ -522,26 +514,7 @@ input:focus-visible {
 }
 
 .cover-stage {
-  position: relative;
   perspective: 900px;
-}
-/*
- * The glow behind the cover. Its big blurred shadow is drawn once and only its opacity pulses: animating a
- * box-shadow itself repaints a huge area every frame, which was a third of the app's CPU while playing.
- */
-.cover-stage::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  box-shadow: 0 38px 120px -14px rgb(var(--accent) / 0.65);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.6s ease;
-}
-.cover-stage.live::before {
-  opacity: 1;
-  animation: glow-pulse 3.2s ease-in-out infinite;
 }
 .cover {
   position: relative;
@@ -552,6 +525,9 @@ input:focus-visible {
   box-shadow: 0 30px 80px -20px rgb(var(--accent) / 0.45);
   transform-style: preserve-3d;
   will-change: transform;
+}
+.cover.live {
+  animation: glow 3.2s ease-in-out infinite;
 }
 .cover img {
   position: absolute;
@@ -1938,7 +1914,7 @@ input[type='range'].eq-slider:hover::-webkit-slider-thumb {
 }
 [data-motion='reduced'] .ambient span,
 [data-motion='reduced'] .ambient::after,
-[data-motion='reduced'] .cover-stage.live::before,
+[data-motion='reduced'] .cover.live,
 [data-motion='reduced'] .cover-sheen,
 [data-motion='reduced'] .ring,
 [data-motion='reduced'] .play.live::before,
