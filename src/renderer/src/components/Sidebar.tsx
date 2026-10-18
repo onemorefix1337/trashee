@@ -5,10 +5,11 @@ import type { Account, Pin } from '../../../shared/types'
 import { coverUrl } from '../lib/cover'
 import { usePins } from '../store/library'
 import { navigate, openCollection, openSearch, useRoute, type Route } from '../store/nav'
+import { toggleMini, useMiniVisible } from '../store/mini'
 import { currentTrack, startWave, usePlayer } from '../store/player'
 import { updateSettings, useSettings } from '../store/settings'
 import AccountMenu from './AccountMenu'
-import { ChevronIcon, GearIcon, LibraryIcon, SearchIcon, WaveIcon } from './Icons'
+import { ChevronIcon, GearIcon, LibraryIcon, MiniPlayerIcon, SearchIcon, WaveIcon } from './Icons'
 import Logo from './Logo'
 
 const NAV_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const
@@ -16,15 +17,17 @@ const NAV_SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const
 interface NavItemProps {
   label: string
   active: boolean
+  /** Lit without the page pill, for switches that are not pages. */
+  on?: boolean
   collapsed: boolean
   onClick: () => void
   children: JSX.Element
 }
 
-function NavItem({ label, active, collapsed, onClick, children }: NavItemProps): JSX.Element {
+function NavItem({ label, active, on, collapsed, onClick, children }: NavItemProps): JSX.Element {
   return (
     <motion.button
-      className={`nav-item${active ? ' active' : ''}`}
+      className={`nav-item${active ? ' active' : ''}${on ? ' on' : ''}`}
       data-label={label}
       onClick={onClick}
       aria-label={label}
@@ -121,6 +124,7 @@ export default function Sidebar({
   const pins = usePins()
   const collapsed = useSettings((s) => s.sidebarCollapsed)
   const playing = usePlayer((s) => currentTrack(s) !== undefined)
+  const miniVisible = useMiniVisible()
   const openKey = route.page === 'collection' ? refKey(route.ref) : null
 
   return (
@@ -197,6 +201,15 @@ export default function Sidebar({
       </div>
 
       <div className="side-bottom">
+        <NavItem
+          label={miniVisible ? 'Скрыть мини-плеер' : 'Мини-плеер'}
+          active={false}
+          on={miniVisible}
+          collapsed={collapsed}
+          onClick={toggleMini}
+        >
+          <MiniPlayerIcon size={22} />
+        </NavItem>
         <NavItem
           label="Настройки"
           active={isPageRoute(route, 'settings')}

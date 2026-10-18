@@ -1,7 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import type { Account, Restore } from '../../shared/types'
-import { coverUrl, dominantColor, type Rgb } from './lib/cover'
+import { artistNames, coverUrl, dominantColor, type Rgb } from './lib/cover'
 import { loadPins, resetLibrary } from './store/library'
 import {
   back,
@@ -26,6 +26,7 @@ import {
   toggle,
   usePlayer
 } from './store/player'
+import { connectMini } from './store/mini'
 import { useSettings } from './store/settings'
 import Ambient from './components/Ambient'
 import BackButton from './components/BackButton'
@@ -88,6 +89,39 @@ function useSettingsEffects(): void {
   useEffect(() => setEqualizer(gains), [gains])
 }
 
+/** Keeps the always-on-top mini player in step with the player, and lets it drive the player. */
+function useMiniPlayer(): void {
+  const track = usePlayer(currentTrack)
+  const playing = usePlayer((s) => s.playing)
+  const liked = usePlayer((s) => (track ? s.likedIds.has(track.id) : false))
+
+  useEffect(() => connectMini(), [])
+  useEffect(() => {
+    window.api.miniState(
+      track
+        ? {
+            title: track.title,
+            artist: artistNames(track),
+            coverUri: track.coverUri,
+            playing,
+            liked
+          }
+        : null
+    )
+  }, [track, playing, liked])
+  useEffect(
+    () =>
+      window.api.onMiniCommand((command) => {
+        if (command === 'toggle') toggle()
+        else if (command === 'prev') void previous()
+        else if (command === 'next') void next()
+        else if (command === 'like') likeCurrent()
+        else if (command === 'dislike') void dislikeCurrent()
+      }),
+    []
+  )
+}
+
 /** account: undefined while restoring (or offline), null when a login is needed. */
 function fromRestore(result: Restore): { offline: boolean; account: Account | null | undefined } {
   if (result.status === 'ok') return { offline: false, account: result.account }
@@ -132,6 +166,7 @@ export default function App(): JSX.Element {
 
   useAccent()
   useSettingsEffects()
+  useMiniPlayer()
 
   useEffect(() => {
     void window.api.restoreSession().then((result) => {

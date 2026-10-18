@@ -14,6 +14,7 @@ import type {
   WaveBatch,
   WaveEvent
 } from '../shared/types'
+import type { MiniAnchor, MiniCommand, MiniTrack } from '../shared/mini'
 
 const api = {
   platform: process.platform,
@@ -57,7 +58,24 @@ const api = {
     ipcRenderer.invoke('ym:wave-feedback', sessionId, batchId, type, trackId, playedSeconds),
 
   setQuality: (quality: Quality): Promise<void> =>
-    ipcRenderer.invoke('settings:set-quality', quality)
+    ipcRenderer.invoke('settings:set-quality', quality),
+
+  miniState: (track: MiniTrack | null): void => ipcRenderer.send('mini:state', track),
+  miniToggle: (): Promise<void> => ipcRenderer.invoke('mini:toggle'),
+  miniConfig: (): Promise<{ anchor: MiniAnchor; visible: boolean }> =>
+    ipcRenderer.invoke('mini:config'),
+  miniSetAnchor: (anchor: MiniAnchor): Promise<void> =>
+    ipcRenderer.invoke('mini:set-anchor', anchor),
+  onMiniVisible: (callback: (visible: boolean) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, visible: boolean): void => callback(visible)
+    ipcRenderer.on('mini:visible', handler)
+    return () => ipcRenderer.removeListener('mini:visible', handler)
+  },
+  onMiniCommand: (callback: (command: MiniCommand) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, command: MiniCommand): void => callback(command)
+    ipcRenderer.on('mini:command', handler)
+    return () => ipcRenderer.removeListener('mini:command', handler)
+  }
 }
 
 export type Api = typeof api

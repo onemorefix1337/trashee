@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpc, streamer } from './ipc'
+import { destroyMini, registerMini } from './mini'
 import { MIN_SIZE, loadWindowBounds, trackWindowBounds } from './window-state'
 import { coverResponse } from './yandex/stream'
 
@@ -34,9 +35,12 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required')
 
 const isWebUrl = (url: string): boolean => /^https?:\/\//i.test(url)
 
+// The mini player is a window too, so "the window" must never be looked up with getAllWindows().
+let mainWindow: BrowserWindow | null = null
+
 function createWindow(): void {
   const { maximized, ...bounds } = loadWindowBounds()
-  const mainWindow = new BrowserWindow({
+  const player = new BrowserWindow({
     ...bounds,
     minWidth: MIN_SIZE.width,
     minHeight: MIN_SIZE.height,
@@ -55,20 +59,25 @@ function createWindow(): void {
     }
   })
 
-  if (maximized) mainWindow.maximize()
-  trackWindowBounds(mainWindow)
+  mainWindow = player
+  if (maximized) player.maximize()
+  trackWindowBounds(player)
+  player.on('closed', () => {
+    mainWindow = null
+    destroyMini()
+  })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+  player.on('ready-to-show', () => {
+    player.show()
   })
 
   // Links leave the app for the browser; the window itself never navigates away from the player.
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  player.webContents.setWindowOpenHandler((details) => {
     if (isWebUrl(details.url)) void shell.openExternal(details.url)
     return { action: 'deny' }
   })
-  mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (new URL(url).origin === new URL(mainWindow.webContents.getURL()).origin) return
+  player.webContents.on('will-navigate', (event, url) => {
+    if (new URL(url).origin === new URL(player.webContents.getURL()).origin) return
     event.preventDefault()
     if (isWebUrl(url)) void shell.openExternal(url)
   })
@@ -76,9 +85,9 @@ function createWindow(): void {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    player.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    player.loadFile(join(__dirname, '../renderer/index.html'))
   }
 }
 
@@ -98,6 +107,7 @@ app.whenReady().then(() => {
     new URL(request.url).hostname === 'cover' ? coverResponse(request) : streamer.handle(request)
   )
   registerIpc()
+  registerMini(() => mainWindow)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.
@@ -108,16 +118,15 @@ app.whenReady().then(() => {
   createWindow()
 
   app.on('second-instance', () => {
-    const window = BrowserWindow.getAllWindows()[0]
-    if (!window) return
-    if (window.isMinimized()) window.restore()
-    window.focus()
+    if (!mainWindow) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
   })
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    if (!mainWindow) createWindow()
   })
 })
 

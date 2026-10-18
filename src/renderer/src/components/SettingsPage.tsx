@@ -2,8 +2,10 @@ import type { JSX, ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { SPEEDS, type MotionLevel } from '../../../shared/settings'
 import type { Account, Quality } from '../../../shared/types'
+import { setMiniAnchor, toggleMini, useMiniAnchor, useMiniVisible } from '../store/mini'
 import { updateSettings, useSettings } from '../store/settings'
 import EqualizerPanel from './EqualizerPanel'
+import PositionPicker from './PositionPicker'
 import Segmented from './Segmented'
 import Switch from './Switch'
 
@@ -32,6 +34,7 @@ const SHORTCUTS: [string, string][] = [
   ['L', 'Лайк текущему треку'],
   ['D', 'Не нравится: пропустить трек'],
   ['Alt + ←', 'Назад по страницам'],
+  ['⌘/Ctrl + Alt + M', 'Мини-плеер поверх всех окон, из любого приложения'],
   ['Медиаклавиши', 'Работают и когда окно не в фокусе']
 ]
 
@@ -91,6 +94,8 @@ export default function SettingsPage({
   const motionLevel = useSettings((s) => s.motion)
   const visualizer = useSettings((s) => s.visualizer)
   const dynamicColors = useSettings((s) => s.dynamicColors)
+  const miniVisible = useMiniVisible()
+  const miniAnchor = useMiniAnchor()
 
   return (
     <div className="page settings">
@@ -159,7 +164,19 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <Section title="Горячие клавиши" index={2}>
+      <Section title="Мини-плеер" index={2}>
+        <Row
+          title="Поверх всех окон"
+          hint="Обложка, трек и кнопки управления в маленькой карточке. Её можно перетащить мышью."
+        >
+          <Switch label="Мини-плеер" checked={miniVisible} onChange={toggleMini} />
+        </Row>
+        <Row title="Положение" hint="Выбор места возвращает карточку на него после перетаскивания.">
+          <PositionPicker value={miniAnchor} onChange={setMiniAnchor} />
+        </Row>
+      </Section>
+
+      <Section title="Горячие клавиши" index={3}>
         {SHORTCUTS.map(([keys, action]) => (
           <div key={keys} className="setting-row shortcut">
             <kbd>{keys}</kbd>
@@ -168,7 +185,7 @@ export default function SettingsPage({
         ))}
       </Section>
 
-      <Section title="Аккаунт" index={3}>
+      <Section title="Аккаунт" index={4}>
         <Row title={account.login} hint={account.hasPlus ? 'Яндекс Плюс' : 'Без подписки'}>
           <motion.button
             className="chip danger"

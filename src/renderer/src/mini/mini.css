@@ -1,0 +1,446 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Inter, Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  color-scheme: dark;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* The whole card drags the window; controls opt out. */
+#card {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #0b0b0d;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  -webkit-app-region: drag;
+}
+
+.bg {
+  position: absolute;
+  inset: -20px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(30px) brightness(0.36) saturate(1.7);
+  transform: scale(1.09);
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+#shell {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  animation: pop-in 0.3s cubic-bezier(0.34, 1.5, 0.64, 1) both;
+}
+#shell.out {
+  animation: pop-out 0.2s cubic-bezier(0.55, 0, 1, 0.45) both;
+}
+@keyframes pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(12px);
+  }
+  65% {
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes pop-out {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.9) translateY(10px);
+  }
+}
+
+.corner {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+#card:hover .corner {
+  opacity: 1;
+}
+.corner-btn {
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    background 0.15s,
+    color 0.15s;
+}
+.corner-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+#top {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  gap: 14px;
+  padding: 14px 16px 8px;
+}
+
+#art-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  transition: box-shadow 0.4s;
+}
+#art-wrap.playing {
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.6),
+    0 0 0 2px var(--ac, rgba(255, 255, 255, 0.2));
+  animation: art-pulse 2.4s ease-in-out infinite;
+}
+@keyframes art-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 8px 28px rgba(0, 0, 0, 0.6),
+      0 0 0 2px var(--ac, rgba(255, 255, 255, 0.2));
+  }
+  50% {
+    box-shadow:
+      0 8px 28px rgba(0, 0, 0, 0.6),
+      0 0 0 4px var(--ac, rgba(255, 255, 255, 0.08));
+  }
+}
+#art-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+#art-ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 30px;
+  color: rgba(255, 255, 255, 0.25);
+  transition: opacity 0.3s;
+}
+#eq-wrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3.5px;
+  padding-bottom: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+#eq-wrap.on {
+  opacity: 1;
+}
+.bar {
+  width: 3.5px;
+  height: 3px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.92);
+  animation: bar-a 0.7s ease-in-out infinite alternate;
+}
+.bar:nth-child(1) {
+  animation-duration: 0.52s;
+}
+.bar:nth-child(2) {
+  animation-name: bar-b;
+  animation-duration: 0.81s;
+  animation-delay: 0.11s;
+}
+.bar:nth-child(3) {
+  animation-duration: 0.63s;
+  animation-delay: 0.06s;
+}
+.bar:nth-child(4) {
+  animation-name: bar-b;
+  animation-duration: 0.74s;
+  animation-delay: 0.19s;
+}
+.bar.p {
+  animation-play-state: paused;
+}
+@keyframes bar-a {
+  from {
+    height: 3px;
+  }
+  to {
+    height: 16px;
+  }
+}
+@keyframes bar-b {
+  from {
+    height: 5px;
+  }
+  to {
+    height: 20px;
+  }
+}
+
+#info {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  overflow: hidden;
+}
+#label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--ac, rgba(255, 255, 255, 0.4));
+  transition: color 0.5s;
+}
+#track-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.4);
+}
+#artist-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.5);
+}
+.slide-in {
+  animation: slide-in 0.22s cubic-bezier(0.25, 0.8, 0.25, 1) both;
+}
+.slide-out {
+  animation: slide-out 0.18s ease-in both;
+}
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes slide-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+#sep {
+  height: 1px;
+  margin: 0 16px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1) 40%,
+    rgba(255, 255, 255, 0.1) 60%,
+    transparent
+  );
+}
+
+#ctrls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 0 12px;
+}
+.cb {
+  position: relative;
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+  transition:
+    transform 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+.cb::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  opacity: 1;
+  transform: scale(0);
+  transition:
+    transform 0.35s ease,
+    opacity 0.35s ease;
+}
+.cb:active::after {
+  opacity: 0;
+  transform: scale(2.2);
+  transition: none;
+}
+.cb svg {
+  pointer-events: none;
+}
+.skip {
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.65);
+}
+.skip:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  transform: scale(1.07);
+}
+.skip:active {
+  transform: scale(0.88);
+}
+#pbtn {
+  width: 46px;
+  height: 46px;
+  background: var(--ac, rgba(255, 255, 255, 0.94));
+  color: #000;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition:
+    transform 0.15s,
+    filter 0.15s,
+    background 0.5s;
+}
+#pbtn:hover {
+  filter: brightness(1.15);
+  transform: scale(1.06);
+}
+#pbtn:active {
+  filter: brightness(0.86);
+  transform: scale(0.91);
+}
+#pbtn.pop {
+  animation: btn-pop 0.22s cubic-bezier(0.34, 1.6, 0.64, 1);
+}
+@keyframes btn-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(0.8);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+#btn-like,
+#btn-dislike {
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.4);
+  transition: all 0.2s;
+}
+#btn-like:hover {
+  background: rgba(255, 80, 100, 0.18);
+  color: rgba(255, 100, 120, 0.9);
+  transform: scale(1.1);
+}
+#btn-like.liked {
+  background: rgba(255, 60, 90, 0.22);
+  color: #ff4d6d;
+  animation: heart-pop 0.28s cubic-bezier(0.34, 1.6, 0.64, 1);
+}
+@keyframes heart-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.35);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+#btn-dislike {
+  color: rgba(255, 255, 255, 0.3);
+}
+#btn-dislike:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.7);
+  transform: scale(1.07);
+}
+.ctrl-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 2px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #shell,
+  #shell.out,
+  #art-wrap.playing,
+  .bar,
+  .slide-in,
+  .slide-out,
+  #btn-like.liked,
+  #pbtn.pop {
+    animation-duration: 0.01s !important;
+    animation-iteration-count: 1 !important;
+  }
+}

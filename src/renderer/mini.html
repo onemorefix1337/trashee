@@ -1,0 +1,140 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>trashee</title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: trashee-media:; connect-src 'self' trashee-media:"
+    />
+  </head>
+
+  <body>
+    <div id="card">
+      <div class="bg" id="bg1"></div>
+      <div class="bg" id="bg2"></div>
+
+      <div id="shell">
+        <div class="corner">
+          <button class="corner-btn" id="open" title="Открыть trashee" aria-label="Открыть trashee">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M7 17 17 7" />
+              <path d="M8 7h9v9" />
+            </svg>
+          </button>
+          <button class="corner-btn" id="close" title="Скрыть" aria-label="Скрыть мини-плеер">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.4"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+
+        <div id="top">
+          <div id="art-wrap">
+            <div id="art-ph">♪</div>
+            <img id="art-img" alt="" />
+            <div id="eq-wrap">
+              <div class="bar p"></div>
+              <div class="bar p"></div>
+              <div class="bar p"></div>
+              <div class="bar p"></div>
+            </div>
+          </div>
+          <div id="info">
+            <div id="label">trashee</div>
+            <div id="track-name">Нет воспроизведения</div>
+            <div id="artist-name"></div>
+          </div>
+        </div>
+
+        <div id="sep"></div>
+
+        <div id="ctrls">
+          <button class="cb skip" data-cmd="prev" title="Предыдущий" aria-label="Предыдущий">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true">
+              <rect x="1.5" y="1.5" width="2.5" height="12" rx="1.1" />
+              <path d="M13 2.5 5.5 7.5 13 12.5V2.5z" />
+            </svg>
+          </button>
+          <button
+            class="cb"
+            id="pbtn"
+            data-cmd="toggle"
+            title="Играть / пауза"
+            aria-label="Играть или пауза"
+          >
+            <svg
+              id="i-play"
+              width="17"
+              height="17"
+              viewBox="0 0 17 17"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path d="M5.5 3.5 14 8.5 5.5 13.5V3.5z" />
+            </svg>
+            <svg
+              id="i-pause"
+              width="17"
+              height="17"
+              viewBox="0 0 17 17"
+              fill="currentColor"
+              style="display: none"
+              aria-hidden="true"
+            >
+              <rect x="3.5" y="3" width="3.2" height="11" rx="1.3" />
+              <rect x="10.3" y="3" width="3.2" height="11" rx="1.3" />
+            </svg>
+          </button>
+          <button class="cb skip" data-cmd="next" title="Следующий" aria-label="Следующий">
+            <svg width="15" height="15" viewBox="0 0 15 15" fill="currentColor" aria-hidden="true">
+              <rect x="11" y="1.5" width="2.5" height="12" rx="1.1" />
+              <path d="M2 2.5l7.5 5L2 12.5V2.5z" />
+            </svg>
+          </button>
+          <div class="ctrl-sep"></div>
+          <button class="cb" id="btn-like" data-cmd="like" title="Нравится" aria-label="Нравится">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+              />
+            </svg>
+          </button>
+          <button
+            class="cb"
+            id="btn-dislike"
+            data-cmd="dislike"
+            title="Не нравится"
+            aria-label="Не нравится"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path
+                d="M15 3H6c-.83 0-1.54.5-1.84 1.22l-3.02 7.05c-.09.23-.14.47-.14.73v2c0 1.1.9 2 2 2h6.31l-.95 4.57-.03.32c0 .41.17.79.44 1.06L9.83 23l6.59-6.59c.36-.36.58-.86.58-1.41V5c0-1.1-.9-2-2-2zm4 0v12h4V3h-4z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/mini/mini.ts"></script>
+  </body>
+</html>

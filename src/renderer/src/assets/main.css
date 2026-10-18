@@ -1258,6 +1258,9 @@ input:focus-visible {
 .nav-item.active {
   color: var(--text);
 }
+.nav-item.on {
+  color: rgb(var(--accent));
+}
 .nav-pill {
   position: absolute;
   inset: 0;
@@ -2023,4 +2026,43 @@ html[data-platform='linux'] .sidebar {
 }
 .settings .page-head {
   margin-bottom: 20px;
+}
+
+/* Where the mini player sits: a tiny screen with six spots */
+.position-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 4px;
+  width: 132px;
+  height: 84px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface-hover);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.position-spot {
+  position: relative;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+.position-spot:hover {
+  background: rgb(255 255 255 / 0.06);
+}
+.position-spot::before {
+  content: '';
+  position: absolute;
+  inset: 5px 4px;
+  border-radius: 6px;
+  border: 1px dashed rgb(255 255 255 / 0.14);
+}
+.position-spot:hover::before {
+  border-color: rgb(255 255 255 / 0.32);
+}
+.position-card {
+  position: absolute;
+  inset: 5px 4px;
+  border-radius: 6px;
+  background: rgb(var(--accent));
+  box-shadow: 0 4px 14px rgb(var(--accent) / 0.45);
 }

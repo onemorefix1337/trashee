@@ -113,6 +113,12 @@ export const GearIcon = (p: IconProps): JSX.Element => (
     <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3h0a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9v0a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z" />
   </Svg>
 )
+export const MiniPlayerIcon = (p: IconProps): JSX.Element => (
+  <Svg {...p}>
+    <rect x="3" y="5" width="18" height="14" rx="3" />
+    <rect x="12" y="11.5" width="6" height="4.5" rx="1.2" fill="currentColor" stroke="none" />
+  </Svg>
+)
 export const PinIcon = ({ filled, ...p }: IconProps & { filled?: boolean }): JSX.Element => (
   <Svg {...p} fill={filled}>
     <path d="m15 4 5 5-3 1-3.5 3.5.5 4-1.5 1.5-3-4.5L5 19.5M9 10.5l-1-3 1.5-1.5 4 .5" />
