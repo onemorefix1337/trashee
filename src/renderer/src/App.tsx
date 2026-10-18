@@ -29,6 +29,7 @@ import {
 import { connectMini, useMiniLine, useMiniLook, useMiniVisible } from './store/mini'
 import { connectOffline } from './store/offline'
 import { useSettings } from './store/settings'
+import { closeToTrayOn } from '../../shared/settings'
 import { connectUpdates, useAppInfo } from './store/update'
 import Ambient from './components/Ambient'
 import BackButton from './components/BackButton'
@@ -81,6 +82,7 @@ function useSettingsEffects(): void {
   const motionLevel = useSettings((s) => s.motion)
   const speed = useSettings((s) => s.speed)
   const gains = useSettings((s) => s.eqGains)
+  const closeToTray = useSettings((s) => s.closeToTray)
 
   useEffect(() => {
     void window.api.setQuality(quality)
@@ -88,6 +90,9 @@ function useSettingsEffects(): void {
   useEffect(() => {
     document.documentElement.dataset.motion = motionLevel
   }, [motionLevel])
+  useEffect(() => {
+    window.api.setCloseToTray(closeToTrayOn(closeToTray, window.api.platform))
+  }, [closeToTray])
   useEffect(() => setSpeed(speed), [speed])
   useEffect(() => setEqualizer(gains), [gains])
 }

@@ -1,7 +1,7 @@
 import type { JSX, ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { miniShortcut } from '../../../shared/mini'
-import { SPEEDS, type MotionLevel } from '../../../shared/settings'
+import { SPEEDS, closeToTrayOn, type MotionLevel } from '../../../shared/settings'
 import type { Account, Quality } from '../../../shared/types'
 import { formatBytes as sizeText, removeOffline, useCacheInfo } from '../store/offline'
 import {
@@ -273,6 +273,7 @@ export default function SettingsPage({
   const motionLevel = useSettings((s) => s.motion)
   const visualizer = useSettings((s) => s.visualizer)
   const dynamicColors = useSettings((s) => s.dynamicColors)
+  const closeToTray = useSettings((s) => s.closeToTray)
   const miniVisible = useMiniVisible()
   const miniAnchor = useMiniAnchor()
   const miniLook = useMiniLook()
@@ -344,7 +345,28 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <Section title="Мини-плеер" index={2}>
+      <Section title="Окно" index={2}>
+        <Row
+          title={
+            window.api.platform === 'darwin'
+              ? 'Играть после закрытия окна'
+              : 'Сворачивать в трей при закрытии'
+          }
+          hint={
+            window.api.platform === 'darwin'
+              ? 'Крестик прячет окно, музыка продолжает играть. Вернуть окно можно из Dock или значка в строке меню.'
+              : 'Крестик прячет окно, музыка продолжает играть. Вернуть окно и управлять музыкой можно из значка в трее.'
+          }
+        >
+          <Switch
+            label="Сворачивать в трей при закрытии"
+            checked={closeToTrayOn(closeToTray, window.api.platform)}
+            onChange={(checked) => updateSettings({ closeToTray: checked })}
+          />
+        </Row>
+      </Section>
+
+      <Section title="Мини-плеер" index={3}>
         <Row
           title="Поверх всех окон"
           hint="Обложка, трек и кнопки управления в маленькой карточке. Её можно перетащить мышью."
@@ -410,9 +432,9 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <CacheSection index={3} />
+      <CacheSection index={4} />
 
-      <Section title="Горячие клавиши" index={4}>
+      <Section title="Горячие клавиши" index={5}>
         {shortcuts().map(([keys, action]) => (
           <div key={keys} className="setting-row shortcut">
             <kbd>{keys}</kbd>
@@ -421,7 +443,7 @@ export default function SettingsPage({
         ))}
       </Section>
 
-      <Section title="Аккаунт" index={5}>
+      <Section title="Аккаунт" index={6}>
         <Row title={account.login} hint={account.hasPlus ? 'Яндекс Плюс' : 'Без подписки'}>
           <motion.button
             className="chip danger"
@@ -434,7 +456,7 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <AboutSection index={6} />
+      <AboutSection index={7} />
 
       <p className="muted small about">
         trashee — неофициальный клиент Яндекс Музыки. Он использует закрытое API сервиса, которое

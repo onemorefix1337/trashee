@@ -61,6 +61,7 @@ const api = {
   ): Promise<void> =>
     ipcRenderer.invoke('ym:wave-feedback', sessionId, batchId, type, trackId, playedSeconds),
 
+  setCloseToTray: (value: boolean): void => ipcRenderer.send('settings:set-close-to-tray', value),
   setQuality: (quality: Quality): Promise<void> =>
     ipcRenderer.invoke('settings:set-quality', quality),
 

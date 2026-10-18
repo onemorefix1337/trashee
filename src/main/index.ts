@@ -3,7 +3,8 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { offlineCover, registerIpc, streamer } from './ipc'
-import { destroyMini, registerMini } from './mini'
+import { destroyMini, isMiniVisible, onMiniVisibleChange, registerMini, toggleMini } from './mini'
+import { hidesOnClose, refreshTray, registerTray } from './tray'
 import { registerUpdater } from './updater'
 import { MIN_SIZE, loadWindowBounds, trackWindowBounds } from './window-state'
 import { coverResponse } from './yandex/stream'
@@ -38,6 +39,11 @@ const isWebUrl = (url: string): boolean => /^https?:\/\//i.test(url)
 
 // The mini player is a window too, so "the window" must never be looked up with getAllWindows().
 let mainWindow: BrowserWindow | null = null
+// Closing the window only hides it while the tray holds the player; quitting must still really close it.
+let quitting = false
+app.on('before-quit', () => {
+  quitting = true
+})
 
 function createWindow(): void {
   const { maximized, ...bounds } = loadWindowBounds()
@@ -63,10 +69,17 @@ function createWindow(): void {
   mainWindow = player
   if (maximized) player.maximize()
   trackWindowBounds(player)
+  player.on('close', (event) => {
+    if (quitting || !hidesOnClose()) return
+    event.preventDefault()
+    player.hide()
+  })
   player.on('closed', () => {
     mainWindow = null
     destroyMini()
   })
+  player.on('show', refreshTray)
+  player.on('hide', refreshTray)
 
   player.on('ready-to-show', () => {
     player.show()
@@ -111,6 +124,8 @@ app.whenReady().then(() => {
   )
   registerIpc(() => mainWindow)
   registerMini(() => mainWindow)
+  registerTray({ window: () => mainWindow, toggleMini, miniVisible: isMiniVisible })
+  onMiniVisibleChange(refreshTray)
   registerUpdater(() => mainWindow)
 
   // Default open or close DevTools by F12 in development
@@ -124,6 +139,7 @@ app.whenReady().then(() => {
   app.on('second-instance', () => {
     if (!mainWindow) return
     if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
     mainWindow.focus()
   })
 
@@ -131,6 +147,7 @@ app.whenReady().then(() => {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
     if (!mainWindow) createWindow()
+    else mainWindow.show()
   })
 })
 

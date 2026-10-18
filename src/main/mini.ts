@@ -164,8 +164,16 @@ function createWindow(): BrowserWindow {
   return created
 }
 
+/** Told whenever the card is shown or hidden, so the tray menu can say so. */
+let onVisibleChange: () => void = () => undefined
+export const onMiniVisibleChange = (callback: () => void): void => {
+  onVisibleChange = callback
+}
+export const isMiniVisible = (): boolean => visible
+
 function setVisible(value: boolean): void {
   visible = value
+  onVisibleChange()
   const player = getPlayerWindow()
   if (player && !player.isDestroyed()) player.webContents.send('mini:visible', value)
 }
@@ -198,7 +206,7 @@ function finishHide(): void {
   if (!visible && window && !window.isDestroyed()) window.hide()
 }
 
-function toggleMini(): void {
+export function toggleMini(): void {
   if (visible) hideMini()
   else void showMini()
 }

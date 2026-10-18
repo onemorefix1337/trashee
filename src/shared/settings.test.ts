@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { DEFAULT_SETTINGS, EQ_BANDS, EQ_PRESETS, sanitizeSettings } from './settings.ts'
+import {
+  DEFAULT_SETTINGS,
+  EQ_BANDS,
+  EQ_PRESETS,
+  closeToTrayOn,
+  sanitizeSettings
+} from './settings.ts'
 
 test('garbage falls back to the defaults', () => {
   for (const junk of [
@@ -22,6 +28,7 @@ test('valid settings survive a round trip', () => {
     visualizer: false,
     dynamicColors: false,
     sidebarCollapsed: true,
+    closeToTray: false,
     prefetchNext: false,
     speed: 1.25,
     eqPreset: 'bass',
@@ -55,4 +62,13 @@ test('fetching the next track ahead is on unless the user turned it off', () => 
   assert.equal(sanitizeSettings({}).prefetchNext, true)
   assert.equal(sanitizeSettings({ prefetchNext: false }).prefetchNext, false)
   assert.equal(sanitizeSettings({ prefetchNext: 'no' }).prefetchNext, true)
+})
+
+test('closing to the tray follows the choice, and without one it is on except on Linux', () => {
+  assert.equal(closeToTrayOn(null, 'darwin'), true)
+  assert.equal(closeToTrayOn(null, 'win32'), true)
+  assert.equal(closeToTrayOn(null, 'linux'), false)
+  assert.equal(closeToTrayOn(false, 'darwin'), false)
+  assert.equal(closeToTrayOn(true, 'linux'), true)
+  assert.equal(sanitizeSettings({ closeToTray: 'yes' }).closeToTray, null)
 })
