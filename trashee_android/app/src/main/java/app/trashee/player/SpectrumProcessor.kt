@@ -31,6 +31,9 @@ class SpectrumProcessor : BaseAudioProcessor() {
         private set
 
     private val history = SpectrumHistory()
+    private var clock = StreamClock(44_100)
+    /** Samples measured since the stream started (or was cut): where in the stream the measurement is. */
+    private var streamFrames = 0L
 
     /** How long the sound waits in the audio output before it is heard; set once the output is known. */
     @Volatile
@@ -52,6 +55,8 @@ class SpectrumProcessor : BaseAudioProcessor() {
         // Other encodings (24-bit, float) are simply not measured.
         if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT) throw AudioProcessor.UnhandledAudioFormatException(inputAudioFormat)
         sampleRate = inputAudioFormat.sampleRate
+        clock = StreamClock(sampleRate)
+        streamFrames = 0
         channels = inputAudioFormat.channelCount.coerceAtLeast(1)
         val top = minOf(HIGH_HZ, sampleRate / 2.0 - 1)
         edges = IntArray(SPECTRUM_BANDS + 1) { i ->
@@ -76,6 +81,7 @@ class SpectrumProcessor : BaseAudioProcessor() {
     }
 
     private fun push(sample: Float) {
+        streamFrames += 1
         samples[filled++] = sample
         if (filled == FFT_SIZE) {
             analyze()
@@ -104,7 +110,8 @@ class SpectrumProcessor : BaseAudioProcessor() {
             result[band] = ((db + FLOOR_DB) / FLOOR_DB).coerceIn(0f, 1f)
         }
         bands = result
-        history.add(System.nanoTime(), result)
+        // The window is centered half its length back: that is where the sound it measured is.
+        history.add(clock.stamp(System.nanoTime(), streamFrames - FFT_SIZE / 2), result)
     }
 
     /** In-place radix-2 FFT of [re] and [im]. */
@@ -153,6 +160,8 @@ class SpectrumProcessor : BaseAudioProcessor() {
         filled = 0
         bands = FloatArray(SPECTRUM_BANDS)
         history.clear()
+        clock.reset()
+        streamFrames = 0
     }
 
     override fun onReset() {
