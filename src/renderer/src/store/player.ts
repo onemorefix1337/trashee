@@ -2,6 +2,14 @@ import { useSyncExternalStore } from 'react'
 import type { Track, WaveEvent } from '../../../shared/types'
 import { EQ_BANDS } from '../../../shared/settings'
 import { fadeLevel } from '../../../shared/sleep'
+import {
+  insertedAt,
+  jumpedTo,
+  startRun,
+  stepBack,
+  stepForward,
+  type ShuffleRun
+} from '../../../shared/shuffle'
 import { artistNames, publicCoverUrl } from '../lib/cover'
 import { getSettings } from './settings'
 import { showToast } from './toast'
@@ -138,6 +146,18 @@ export const getPlayerState = (): PlayerState => state
 
 export const currentTrack = (s: PlayerState): Track | undefined => s.queue[s.index]
 
+/** The plan of the shuffled pass in progress. It belongs to one queue, and is made again when the queue is replaced. */
+let shuffleRun: { queue: Track[]; run: ShuffleRun } | null = null
+
+const isShuffling = (): boolean => state.shuffle && !state.wave && state.queue.length > 1
+
+function currentRun(): ShuffleRun {
+  if (!shuffleRun || shuffleRun.queue !== state.queue) {
+    shuffleRun = { queue: state.queue, run: startRun(state.queue.length, state.index) }
+  }
+  return shuffleRun.run
+}
+
 /* ---------- wave (Моя волна) ---------- */
 
 function waveFeedback(type: WaveEvent, track?: Track, playedSeconds?: number): void {
@@ -217,9 +237,10 @@ let prefetchedFor: string | null = null
 
 /** Asks the main process to download the next track while this one plays, so it starts without waiting. */
 function maybePrefetch(): void {
-  // A shuffled queue picks its next track at random only when it is needed, so there is nothing to fetch.
-  if (!getSettings().prefetchNext || (state.shuffle && !state.wave)) return
-  const upcoming = state.queue[state.index + 1]
+  if (!getSettings().prefetchNext) return
+  const upcoming = isShuffling()
+    ? state.queue[currentRun().upcoming[0]]
+    : state.queue[state.index + 1]
   if (!upcoming || !upcoming.available || upcoming.id === prefetchedFor) return
   if (!Number.isFinite(audio.duration) || audio.duration <= 0) return
   const left = audio.duration - audio.currentTime
@@ -259,14 +280,22 @@ function jump(index: number): void {
 }
 
 export async function next(manual = true): Promise<void> {
-  const { queue, index, repeat, shuffle, wave } = state
+  const { queue, index, repeat, wave } = state
   if (queue.length === 0) return
   if (manual) waveFeedback('skip', queue[index], audio.currentTime)
 
   let target = index + 1
-  if (shuffle && !wave && queue.length > 1) {
-    do target = Math.floor(Math.random() * queue.length)
-    while (target === index)
+  if (isShuffling()) {
+    // Every track plays once before any plays again; at the end of the pass a new one begins if the queue repeats.
+    const step = stepForward(currentRun(), index, queue.length, repeat !== 'off')
+    shuffleRun = { queue, run: step.run }
+    if (step.target === null) {
+      audio.pause()
+      audio.currentTime = 0
+      set({ playing: false, position: 0 })
+      return
+    }
+    target = step.target
   }
   if (target >= queue.length && wave) {
     await refillWave()
@@ -284,7 +313,22 @@ export async function next(manual = true): Promise<void> {
 }
 
 export async function previous(): Promise<void> {
-  if (audio.currentTime > 3 || state.index <= 0) {
+  if (audio.currentTime > 3) {
+    seek(0)
+    return
+  }
+  if (isShuffling()) {
+    // Going back goes to the track that was heard before, not to the one above it in the list.
+    const step = stepBack(currentRun(), state.index)
+    if (step.target === null) {
+      seek(0)
+      return
+    }
+    shuffleRun = { queue: state.queue, run: step.run }
+    jump(step.target)
+    return
+  }
+  if (state.index <= 0) {
     seek(0)
     return
   }
@@ -365,6 +409,7 @@ export function stopAfterCurrentTrack(done: (() => void) | null): void {
 }
 
 export function toggleShuffle(): void {
+  shuffleRun = null
   set({ shuffle: !state.shuffle })
 }
 
@@ -488,6 +533,7 @@ export function enqueueNext(tracks: Track[]): void {
     showToast('Эти треки уже в очереди')
     return
   }
+  const before = state.queue
   set({
     queue: [
       ...state.queue.slice(0, state.index + 1),
@@ -495,6 +541,12 @@ export function enqueueNext(tracks: Track[]): void {
       ...state.queue.slice(state.index + 1)
     ]
   })
+  if (shuffleRun && shuffleRun.queue === before) {
+    shuffleRun = {
+      queue: state.queue,
+      run: insertedAt(shuffleRun.run, state.index + 1, fresh.length)
+    }
+  }
   showToast(`Добавлено в очередь: ${fresh.length}`)
 }
 
@@ -519,7 +571,11 @@ export async function dislikeCurrent(): Promise<void> {
 }
 
 export function jumpTo(index: number): void {
-  if (index >= 0 && index < state.queue.length) jump(index)
+  if (index < 0 || index >= state.queue.length) return
+  if (isShuffling()) {
+    shuffleRun = { queue: state.queue, run: jumpedTo(currentRun(), state.index, index) }
+  }
+  jump(index)
 }
 
 /* ---------- likes ---------- */
