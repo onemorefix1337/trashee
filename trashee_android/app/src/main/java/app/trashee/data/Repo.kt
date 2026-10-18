@@ -66,6 +66,10 @@ class Repo(context: Context, private val scope: CoroutineScope) {
     /** How much later (or, below zero, earlier) the bars move than the player's own estimate of when the sound is heard. */
     val visualizerShiftMs: StateFlow<Int> = _visualizerShiftMs.asStateFlow()
 
+    private val _visualizerOn = MutableStateFlow(prefs.getBoolean("visualizerOn", true))
+    /** Whether the player screen draws the bars (and the player measures the sound for them at all). */
+    val visualizerOn: StateFlow<Boolean> = _visualizerOn.asStateFlow()
+
     private val _offlineMode = MutableStateFlow(false)
     /** Signed in, but Yandex cannot be reached: only what was saved for offline listening works. */
     val offlineMode: StateFlow<Boolean> = _offlineMode.asStateFlow()
@@ -103,6 +107,11 @@ class Repo(context: Context, private val scope: CoroutineScope) {
         val shift = value.coerceIn(VISUALIZER_SHIFT_MIN_MS, VISUALIZER_SHIFT_MAX_MS)
         _visualizerShiftMs.value = shift
         prefs.edit().putInt("visualizerShiftMs", shift).apply()
+    }
+
+    fun setVisualizerOn(value: Boolean) {
+        _visualizerOn.value = value
+        prefs.edit().putBoolean("visualizerOn", value).apply()
     }
 
     fun setPrefetchNext(value: Boolean) {

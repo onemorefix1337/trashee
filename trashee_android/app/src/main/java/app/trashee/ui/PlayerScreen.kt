@@ -133,11 +133,14 @@ fun PlayerScreen() {
             .background(Palette.Bg),
     ) {
         Ambient(ui.playing)
-        SpectrumBars(
-            read = { engine.spectrum.bandsNow() },
-            playing = ui.playing,
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(280.dp),
-        )
+        val bars by app.repo.visualizerOn.collectAsState()
+        if (bars) {
+            SpectrumBars(
+                read = { engine.spectrum.bandsNow() },
+                playing = ui.playing,
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(280.dp),
+            )
+        }
         Column(
             Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,

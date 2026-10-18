@@ -46,8 +46,13 @@ class SpectrumProcessor : BaseAudioProcessor() {
     @Volatile
     var outputDelayMs: Long = 0
 
+    /** Off means the sound passes without being measured: no work, and nothing to draw. */
+    @Volatile
+    var enabled: Boolean = true
+
     /** The measurement of the sound that is being heard right now, or null while nothing is. */
-    fun bandsNow(nowNanos: Long = System.nanoTime()): FloatArray? = history.at(nowNanos - outputDelayMs * 1_000_000L)
+    fun bandsNow(nowNanos: Long = System.nanoTime()): FloatArray? =
+        if (enabled) history.at(nowNanos - outputDelayMs * 1_000_000L) else null
 
     private val window = FloatArray(FFT_SIZE) { (0.5 - 0.5 * cos(2 * PI * it / (FFT_SIZE - 1))).toFloat() }
     private val samples = FloatArray(FFT_SIZE)
@@ -76,11 +81,18 @@ class SpectrumProcessor : BaseAudioProcessor() {
     override fun queueInput(inputBuffer: ByteBuffer) {
         val remaining = inputBuffer.remaining()
         if (remaining == 0) return
-        val view = inputBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
-        while (view.remaining() >= channels) {
-            var sum = 0
-            repeat(channels) { sum += view.get() }
-            push(sum / (channels * 32768f))
+        if (enabled) {
+            val view = inputBuffer.duplicate().order(ByteOrder.LITTLE_ENDIAN).asShortBuffer()
+            while (view.remaining() >= channels) {
+                var sum = 0
+                repeat(channels) { sum += view.get() }
+                push(sum / (channels * 32768f))
+            }
+        } else {
+            // Keep the place in the stream, so measuring can start again from the right spot.
+            streamFrames += remaining / (2 * channels)
+            filled = 0
+            smoothed.fill(0f)
         }
         val output = replaceOutputBuffer(remaining)
         output.put(inputBuffer)

@@ -208,6 +208,7 @@ class PlayerEngine(
         })
 
         scope.launch { repo.eqGains.collect { equalizer.setGains(it) } }
+        scope.launch { repo.visualizerOn.collect { spectrum.enabled = it } }
         // What the bars wait for: what the player says plus the user's own adjustment (Bluetooth adds delay nobody can measure).
         scope.launch {
             combine(_outputDelayMs, repo.visualizerShiftMs) { auto, shift -> (auto + shift).coerceIn(0L, MAX_OUTPUT_DELAY_MS + VISUALIZER_SHIFT_MAX_MS) }
