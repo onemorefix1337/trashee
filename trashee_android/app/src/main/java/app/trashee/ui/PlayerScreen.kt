@@ -259,6 +259,7 @@ fun PlayerScreen() {
                     R.drawable.ic_queue, "Очередь",
                     tint = if (mode == PlayerMode.Queue) accent else Palette.Muted,
                 ) { mode = if (mode == PlayerMode.Queue) PlayerMode.Cover else PlayerMode.Queue }
+                SleepAction()
                 IconAction(R.drawable.ic_download, "Скачать файл", tint = Palette.Muted) { downloadTrackFile(app, track) }
             }
         }

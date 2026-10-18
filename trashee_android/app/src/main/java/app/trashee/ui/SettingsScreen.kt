@@ -40,7 +40,7 @@ import app.trashee.update.UpdateState
 import app.trashee.update.UpdateStatus
 
 @Composable
-private fun Card(title: String, content: @Composable () -> Unit) {
+internal fun Card(title: String, content: @Composable () -> Unit) {
     Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
         Text(title, color = Palette.Text, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 10.dp))
         Column(
@@ -177,6 +177,7 @@ fun SettingsScreen(padding: PaddingValues) {
                 )
             }
         }
+        item { EqualizerCard() }
         item { CacheCard() }
         item {
             Card("Аккаунт") {

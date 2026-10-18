@@ -8,6 +8,7 @@ import app.trashee.api.pollDeviceToken
 import app.trashee.api.requestDeviceCode
 import app.trashee.lyrics.OPEN_SOURCES
 import app.trashee.lyrics.resolveLyrics
+import app.trashee.player.sanitizeEqGains
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -52,6 +53,12 @@ class Repo(context: Context, private val scope: CoroutineScope) {
     /** Download the next track while the current one is still playing. */
     val prefetchNext: StateFlow<Boolean> = _prefetchNext.asStateFlow()
 
+    private val _eqGains = MutableStateFlow(
+        sanitizeEqGains(prefs.getString("eqGains", null)?.split(',')?.map { it.toFloatOrNull() ?: Float.NaN }),
+    )
+    /** One gain in dB for each of the ten equalizer bands. */
+    val eqGains: StateFlow<List<Float>> = _eqGains.asStateFlow()
+
     private val _offlineMode = MutableStateFlow(false)
     /** Signed in, but Yandex cannot be reached: only what was saved for offline listening works. */
     val offlineMode: StateFlow<Boolean> = _offlineMode.asStateFlow()
@@ -77,6 +84,12 @@ class Repo(context: Context, private val scope: CoroutineScope) {
     fun setQuality(value: Quality) {
         _quality.value = value
         prefs.edit().putString("quality", value.wire).apply()
+    }
+
+    fun setEqGains(value: List<Float>) {
+        val gains = sanitizeEqGains(value)
+        _eqGains.value = gains
+        prefs.edit().putString("eqGains", gains.joinToString(",")).apply()
     }
 
     fun setPrefetchNext(value: Boolean) {

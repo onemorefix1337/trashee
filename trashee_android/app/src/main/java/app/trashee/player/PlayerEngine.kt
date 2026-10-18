@@ -17,6 +17,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import android.os.SystemClock
 import app.trashee.BuildConfig
 import app.trashee.data.Repo
 import app.trashee.data.Toasts
@@ -24,6 +25,7 @@ import app.trashee.data.Track
 import app.trashee.data.WaveEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -68,13 +70,16 @@ class PlayerEngine(
     /** What the visualizer draws: measured from the sound this player outputs. */
     val spectrum = SpectrumProcessor()
 
+    /** The ten-band equalizer; it sits in front of the measurement, so the visualizer shows what is heard. */
+    private val equalizer = EqualizerProcessor()
+
     val player: ExoPlayer = run {
         val renderers = object : DefaultRenderersFactory(app) {
             override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
                 DefaultAudioSink.Builder(context)
                     .setEnableFloatOutput(false) // the measurement reads 16-bit samples
                     .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .setAudioProcessors(arrayOf(spectrum))
+                    .setAudioProcessors(arrayOf(equalizer, spectrum))
                     .build()
         }
         ExoPlayer.Builder(app, renderers)
@@ -93,6 +98,11 @@ class PlayerEngine(
 
     private val _position = MutableStateFlow(0L)
     val position: StateFlow<Long> = _position.asStateFlow()
+
+    private val _sleep = MutableStateFlow<Sleep>(Sleep.Off)
+    /** The sleep timer: off, counting down, or waiting for the current track to end. */
+    val sleep: StateFlow<Sleep> = _sleep.asStateFlow()
+    private var sleepJob: Job? = null
 
 
     private var wave: WaveSession? = null
@@ -123,6 +133,15 @@ class PlayerEngine(
                     }
                     feedback(WaveEvent.TrackStarted, track)
                     if (_ui.value.queue.size - index <= WAVE_REFILL_AT) refillWave()
+                }
+            }
+
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                // "After this track" pauses by itself at the end of the item; that is the moment the timer is done.
+                if (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_END_OF_MEDIA_ITEM && _sleep.value == Sleep.AfterTrack) {
+                    player.pauseAtEndOfMediaItems = false
+                    _sleep.value = Sleep.Off
+                    Toasts.say("Таймер сна: музыка остановлена")
                 }
             }
 
@@ -159,6 +178,8 @@ class PlayerEngine(
                 }
             }
         })
+
+        scope.launch { repo.eqGains.collect { equalizer.setGains(it) } }
 
         scope.launch {
             while (true) {
@@ -386,7 +407,47 @@ class PlayerEngine(
         }
     }
 
+    /* ---------- sleep timer ---------- */
+
+    /** Stops the music after [minutes], fading it out over the last seconds. */
+    fun startSleep(minutes: Int) {
+        cancelSleep()
+        val endsAt = SystemClock.elapsedRealtime() + minutes * 60_000L
+        _sleep.value = Sleep.Timer(endsAt - SystemClock.elapsedRealtime())
+        sleepJob = scope.launch {
+            while (true) {
+                val remaining = endsAt - SystemClock.elapsedRealtime()
+                if (remaining <= 0) break
+                val fading = remaining <= SLEEP_FADE_MS
+                if (fading) player.volume = fadeLevel(SLEEP_FADE_MS - remaining, SLEEP_FADE_MS)
+                _sleep.value = Sleep.Timer(remaining)
+                delay(if (fading) 200 else 1000)
+            }
+            player.pause()
+            player.volume = 1f
+            _sleep.value = Sleep.Off
+            Toasts.say("Таймер сна: музыка остановлена")
+        }
+    }
+
+    /** Lets the current track play to its end and stops there. */
+    fun sleepAfterTrack() {
+        cancelSleep()
+        player.pauseAtEndOfMediaItems = true
+        _sleep.value = Sleep.AfterTrack
+    }
+
+    /** Turns the timer off; a fade that began is undone, so the music comes back at its volume. */
+    fun cancelSleep() {
+        sleepJob?.cancel()
+        sleepJob = null
+        player.volume = 1f
+        player.pauseAtEndOfMediaItems = false
+        _sleep.value = Sleep.Off
+    }
+
     fun stop() {
+        cancelSleep()
         wave = null
         lastTrack = null
         player.stop()
