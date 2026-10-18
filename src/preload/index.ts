@@ -45,6 +45,10 @@ const api = {
 
   pins: (): Promise<Pin[]> => ipcRenderer.invoke('ym:pins'),
   playlists: (): Promise<PlaylistInfo[]> => ipcRenderer.invoke('ym:playlists'),
+  createPlaylist: (title: string): Promise<PlaylistInfo> =>
+    ipcRenderer.invoke('ym:create-playlist', title),
+  addToPlaylist: (kind: number, trackId: string, albumId?: number): Promise<'added' | 'exists'> =>
+    ipcRenderer.invoke('ym:add-to-playlist', kind, trackId, albumId),
   collection: (ref: CollectionRef): Promise<Collection> => ipcRenderer.invoke('ym:collection', ref),
   setPin: (ref: CollectionRef, pinned: boolean): Promise<void> =>
     ipcRenderer.invoke('ym:set-pin', ref, pinned),

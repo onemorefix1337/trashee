@@ -1,4 +1,4 @@
-import { YandexMusicError } from './errors'
+import { YandexMusicError } from './errors.ts'
 import {
   coverOf,
   normalizeAlbumInfo,
@@ -7,11 +7,19 @@ import {
   normalizePlaylistInfo,
   normalizeTrack,
   ownerName,
+  playlistHasTrack,
+  playlistInsertDiff,
   playlistRef
-} from './normalize'
-import { parseLrc } from '../../shared/lrc'
-import { YANDEX_SOURCE } from '../../shared/lyrics-resolve'
-import { ANDROID_CLIENT, DESKTOP_CLIENT, FILE_INFO_CODECS, fileInfoSign, lyricsSign } from './sign'
+} from './normalize.ts'
+import { parseLrc } from '../../shared/lrc.ts'
+import { YANDEX_SOURCE } from '../../shared/lyrics-resolve.ts'
+import {
+  ANDROID_CLIENT,
+  DESKTOP_CLIENT,
+  FILE_INFO_CODECS,
+  fileInfoSign,
+  lyricsSign
+} from './sign.ts'
 import type {
   Account,
   AlbumInfo,
@@ -46,8 +54,11 @@ const ARTIST_ALBUMS = 50
 
 export class YandexMusic {
   private uid: number | null = null
+  private readonly token: string
 
-  constructor(private readonly token: string) {}
+  constructor(token: string) {
+    this.token = token
+  }
 
   private async request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
     const url = new URL(BASE + path)
@@ -228,6 +239,49 @@ export class YandexMusic {
         seen.add(info.key)
         return true
       })
+  }
+
+  /** Makes an empty private playlist for the user. */
+  async createPlaylist(title: string): Promise<PlaylistInfo> {
+    const uid = await this.userId()
+    const raw = await this.request<any>(`/users/${uid}/playlists/create`, {
+      form: { title, visibility: 'private' }
+    })
+    const info = normalizePlaylistInfo(raw, uid)
+    if (!info) throw new YandexMusicError('Яндекс не создал плейлист')
+    return info
+  }
+
+  /**
+   * Puts a track at the end of one of the user's playlists. Yandex wants the revision the change is based on, so
+   * the playlist is read first, and once more if somebody else changed it in between. Says "exists" when it was already there.
+   */
+  async addToPlaylist(
+    kind: number,
+    track: { id: string; albumId?: number }
+  ): Promise<'added' | 'exists'> {
+    const uid = await this.userId()
+    for (let attempt = 0; ; attempt++) {
+      const current = await this.request<any>(`/users/${uid}/playlists/${kind}`)
+      if (playlistHasTrack(current, track.id)) return 'exists'
+      try {
+        await this.request(`/users/${uid}/playlists/${kind}/change`, {
+          form: {
+            kind: String(kind),
+            revision: String(current?.revision ?? 1),
+            diff: playlistInsertDiff(track, current?.trackCount ?? current?.tracks?.length ?? 0)
+          }
+        })
+        return 'added'
+      } catch (error) {
+        // A playlist changed from another device between the read and the write: look again, once.
+        const stale =
+          error instanceof YandexMusicError &&
+          (error.status === 412 || /revision/i.test(error.message))
+        if (attempt === 0 && stale) continue
+        throw error
+      }
+    }
   }
 
   async collection(ref: CollectionRef): Promise<Collection> {

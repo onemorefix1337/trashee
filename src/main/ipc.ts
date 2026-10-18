@@ -48,6 +48,8 @@ async function signIn(token: string): Promise<Account> {
   return account
 }
 
+const PLAYLIST_TITLE_LIMIT = 100
+
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
 /** One poll that treats network trouble like "not confirmed yet"; real OAuth failures still throw. */
@@ -189,6 +191,19 @@ export function registerIpc(getPlayerWindow: () => BrowserWindow | null): void {
   ipcMain.handle('ym:similar', (_, id: string) => requireApi().similar(id))
   ipcMain.handle('ym:pins', () => requireApi().pins())
   ipcMain.handle('ym:playlists', () => requireApi().playlists())
+  ipcMain.handle('ym:create-playlist', (_, title: unknown) => {
+    const name = typeof title === 'string' ? title.trim().slice(0, PLAYLIST_TITLE_LIMIT) : ''
+    if (!name) throw new Error('У плейлиста должно быть название')
+    return requireApi().createPlaylist(name)
+  })
+  ipcMain.handle('ym:add-to-playlist', (_, kind: unknown, trackId: unknown, albumId: unknown) => {
+    if (typeof kind !== 'number' || !Number.isInteger(kind) || typeof trackId !== 'string')
+      throw new Error('Неверный плейлист или трек')
+    return requireApi().addToPlaylist(kind, {
+      id: trackId,
+      albumId: typeof albumId === 'number' ? albumId : undefined
+    })
+  })
   ipcMain.handle('ym:collection', async (_, ref: CollectionRef) => {
     try {
       return await requireApi().collection(ref)

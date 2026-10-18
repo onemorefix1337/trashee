@@ -2122,6 +2122,71 @@ html[data-platform='linux'] .sidebar {
   text-decoration-color: rgb(var(--accent));
 }
 
+/* The "add to playlist" window reuses the dialog frame of the update window. */
+.picker-card {
+  gap: 16px;
+  width: min(420px, 100%);
+}
+.picker-card h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+.picker-track {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.picker-new {
+  display: flex;
+  gap: 8px;
+}
+.picker-new input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  user-select: text;
+}
+.picker-new input::placeholder {
+  color: var(--muted);
+}
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 280px;
+  margin: 0 -8px;
+  padding: 0 8px;
+  overflow-y: auto;
+}
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  text-align: left;
+  transition: background 0.15s;
+}
+.picker-row:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.picker-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.picker-name > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* "About" rows */
 .setting-value {
   color: var(--muted);

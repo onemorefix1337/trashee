@@ -5,6 +5,7 @@ import type { Track } from '../../../shared/types'
 import { artistNames } from '../lib/cover'
 import { openCollection, openSimilar } from '../store/nav'
 import { downloadTrackFile } from '../store/offline'
+import { openPlaylistPicker } from '../store/picker'
 import { enqueueNext } from '../store/player'
 
 export interface MenuPoint {
@@ -25,6 +26,7 @@ function itemsFor(track: Track): Item[] {
   const album = track.albums.find((candidate) => candidate.id)
   const items: Item[] = [
     { label: 'Играть дальше', run: () => enqueueNext([track]) },
+    { label: 'Добавить в плейлист', run: () => openPlaylistPicker(track) },
     { label: 'Скачать файл', run: () => void downloadTrackFile(track) }
   ]
   if (album) {

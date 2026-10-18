@@ -146,3 +146,17 @@ export function normalizeAlbumInfo(raw: any): AlbumInfo | null {
     kind: raw.type && raw.type !== 'single-album' ? raw.type : undefined
   }
 }
+
+/** True when a playlist as Yandex returns it already holds the track (ids may come as "track:album"). */
+export function playlistHasTrack(raw: any, trackId: string): boolean {
+  return (raw?.tracks ?? []).some(
+    (item: any) => String(item?.id ?? item?.track?.id ?? '').split(':')[0] === trackId
+  )
+}
+
+/** The `diff` Yandex expects for putting one track at position `at` of a playlist. */
+export function playlistInsertDiff(track: { id: string; albumId?: number }, at: number): string {
+  const entry: { id: string; albumId?: number } = { id: track.id }
+  if (track.albumId !== undefined) entry.albumId = track.albumId
+  return JSON.stringify([{ op: 'insert', at, tracks: [entry] }])
+}
