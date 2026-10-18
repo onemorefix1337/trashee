@@ -420,6 +420,30 @@ export function restoreQueue(): void {
   )
 }
 
+/** Starts a queue taken over from another device: at this track, this many seconds in, playing or paused. */
+export function playQueueAt(
+  tracks: Track[],
+  startIndex: number,
+  startSeconds: number,
+  autoplay: boolean
+): void {
+  const playable = tracks.filter((track) => track.available)
+  const start = playable.indexOf(tracks[startIndex])
+  if (playable.length === 0 || start < 0) return
+  consecutiveErrors = 0
+  rememberQueue()
+  set({ queue: playable, wave: null })
+  jump(start)
+  audio.addEventListener(
+    'loadedmetadata',
+    () => {
+      audio.currentTime = startSeconds
+    },
+    { once: true }
+  )
+  if (!autoplay) audio.pause()
+}
+
 export function playTracks(tracks: Track[], startIndex = 0): void {
   const playable = tracks.filter((track) => track.available)
   const start = playable.indexOf(tracks[startIndex])

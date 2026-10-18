@@ -8,6 +8,8 @@ import {
   sanitizeHandoff,
   sanitizeNowPlaying,
   sanitizeSyncCommand,
+  type DeviceRef,
+  type DeviceStatus,
   type Handoff,
   type NowPlaying,
   type SyncCommand
@@ -38,19 +40,6 @@ export interface PairedDevice {
   platform: string
   token: string
   pairedAt: number
-}
-
-export interface DeviceRef {
-  id: string
-  name: string
-}
-
-export interface DeviceStatus {
-  id: string
-  name: string
-  platform: string
-  online: boolean
-  state: NowPlaying | null
 }
 
 /** What the server tells the app around it; everything that touches the player goes through here. */

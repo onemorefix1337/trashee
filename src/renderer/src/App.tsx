@@ -31,6 +31,7 @@ import { connectMini, useMiniLine, useMiniLook, useMiniVisible } from './store/m
 import { connectOffline } from './store/offline'
 import { useSettings } from './store/settings'
 import { closeToTrayOn } from '../../shared/settings'
+import { connectSync, describeNowPlaying, setSyncEnabled, useSync } from './store/sync'
 import { connectUpdates, useAppInfo } from './store/update'
 import Ambient from './components/Ambient'
 import BackButton from './components/BackButton'
@@ -50,6 +51,7 @@ import UpdateDialog from './components/UpdateDialog'
 import Visualizer from './components/Visualizer'
 
 const SEEK_STEP = 5
+const SYNC_REFRESH_MS = 15_000
 const NEUTRAL: Rgb = [255, 255, 255]
 const SIDEBAR_WIDTH = { open: '264px', collapsed: '68px' }
 
@@ -97,6 +99,30 @@ function useSettingsEffects(): void {
   }, [closeToTray])
   useEffect(() => setSpeed(speed), [speed])
   useEffect(() => setEqualizer(gains), [gains])
+}
+
+/** Keeps the sync service in step with the setting, and tells paired phones what plays here. */
+function useSyncPublisher(): void {
+  const enabled = useSettings((s) => s.sync)
+  const running = useSync().enabled
+  const track = usePlayer(currentTrack)
+  const playing = usePlayer((s) => s.playing)
+  const seeks = usePlayer((s) => s.seeks)
+  const index = usePlayer((s) => s.index)
+  const queueLength = usePlayer((s) => s.queue.length)
+
+  useEffect(() => {
+    void setSyncEnabled(enabled)
+  }, [enabled])
+  useEffect(() => connectSync(), [])
+  useEffect(() => {
+    if (!running) return
+    const publish = (): void => window.api.syncPublish(describeNowPlaying())
+    publish()
+    // A phone works out where the track is from the last state; refreshing it keeps the two close.
+    const timer = playing ? setInterval(publish, SYNC_REFRESH_MS) : undefined
+    return () => clearInterval(timer)
+  }, [running, track, playing, seeks, index, queueLength])
 }
 
 /** Tells Discord what is playing, when the user switched that on. */
@@ -215,6 +241,7 @@ export default function App(): JSX.Element {
   useSettingsEffects()
   useMiniPlayer()
   useDiscordPresence()
+  useSyncPublisher()
   useEffect(() => connectUpdates(), [])
   useEffect(() => connectOffline(), [])
   const appInfo = useAppInfo()

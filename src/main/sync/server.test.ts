@@ -4,9 +4,15 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { after, test } from 'node:test'
-import type { Handoff, NowPlaying, SyncCommand } from '../../shared/sync.ts'
+import type {
+  DeviceRef,
+  DeviceStatus,
+  Handoff,
+  NowPlaying,
+  SyncCommand
+} from '../../shared/sync.ts'
 import { pairProof, randomHex, requestSignature, wrapToken } from './crypto.ts'
-import { DISCOVER_MESSAGE, SyncServer, type DeviceRef, type DeviceStatus } from './server.ts'
+import { DISCOVER_MESSAGE, SyncServer } from './server.ts'
 
 const dirs: string[] = []
 after(() => dirs.forEach((dir) => rmSync(dir, { recursive: true, force: true })))

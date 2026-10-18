@@ -161,3 +161,10 @@ export const MoonIcon = (p: IconProps): JSX.Element => (
     <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z" />
   </Svg>
 )
+export const DevicesIcon = (p: IconProps): JSX.Element => (
+  <Svg {...p}>
+    <rect x="3" y="5" width="13" height="10" rx="2" />
+    <path d="M7 19h5M9.5 15v4" />
+    <rect x="17.5" y="9" width="4" height="10" rx="1.2" />
+  </Svg>
+)

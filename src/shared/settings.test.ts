@@ -30,6 +30,7 @@ test('valid settings survive a round trip', () => {
     sidebarCollapsed: true,
     closeToTray: false,
     discord: true,
+    sync: true,
     prefetchNext: false,
     speed: 1.25,
     eqPreset: 'bass',

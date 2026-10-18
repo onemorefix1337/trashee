@@ -19,6 +19,14 @@ import type {
 } from '../shared/types'
 import type { MiniAnchor, MiniCommand, MiniLook, MiniTrack } from '../shared/mini'
 import type { PresenceInfo } from '../shared/discord'
+import type {
+  DeviceRef,
+  DeviceStatus,
+  Handoff,
+  NowPlaying,
+  SyncCommand,
+  SyncStatus
+} from '../shared/sync'
 import type { AppInfo, UpdateState } from '../shared/update'
 
 const api = {
@@ -67,6 +75,44 @@ const api = {
   ): Promise<void> =>
     ipcRenderer.invoke('ym:wave-feedback', sessionId, batchId, type, trackId, playedSeconds),
 
+  syncEnable: (on: boolean): Promise<SyncStatus> => ipcRenderer.invoke('sync:enable', on),
+  syncStatus: (): Promise<SyncStatus | null> => ipcRenderer.invoke('sync:status'),
+  syncPair: (): Promise<{ code: string; expiresAt: number; addresses: string[] } | null> =>
+    ipcRenderer.invoke('sync:pair'),
+  syncCancelPair: (): void => ipcRenderer.send('sync:cancel-pair'),
+  syncForget: (id: string): void => ipcRenderer.send('sync:forget', id),
+  syncPublish: (state: NowPlaying | null): void => ipcRenderer.send('sync:publish', state),
+  syncCommand: (id: string, command: SyncCommand): Promise<boolean> =>
+    ipcRenderer.invoke('sync:command', id, command),
+  syncHandoff: (id: string, handoff: Handoff): Promise<boolean> =>
+    ipcRenderer.invoke('sync:handoff', id, handoff),
+  syncPullFrom: (id: string): Promise<boolean> => ipcRenderer.invoke('sync:pull-from', id),
+  onSyncDevices: (callback: (devices: DeviceStatus[]) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, devices: DeviceStatus[]): void => callback(devices)
+    ipcRenderer.on('sync:devices', handler)
+    return () => ipcRenderer.removeListener('sync:devices', handler)
+  },
+  onSyncCommand: (
+    callback: (event: { from: DeviceRef; command: SyncCommand }) => void
+  ): (() => void) => {
+    const handler = (_: IpcRendererEvent, event: { from: DeviceRef; command: SyncCommand }): void =>
+      callback(event)
+    ipcRenderer.on('sync:command', handler)
+    return () => ipcRenderer.removeListener('sync:command', handler)
+  },
+  onSyncHandoff: (
+    callback: (event: { from: DeviceRef; handoff: Handoff }) => void
+  ): (() => void) => {
+    const handler = (_: IpcRendererEvent, event: { from: DeviceRef; handoff: Handoff }): void =>
+      callback(event)
+    ipcRenderer.on('sync:handoff', handler)
+    return () => ipcRenderer.removeListener('sync:handoff', handler)
+  },
+  onSyncPull: (callback: (event: { from: DeviceRef }) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, event: { from: DeviceRef }): void => callback(event)
+    ipcRenderer.on('sync:pull', handler)
+    return () => ipcRenderer.removeListener('sync:pull', handler)
+  },
   discordAvailable: (): Promise<boolean> => ipcRenderer.invoke('discord:available'),
   setDiscord: (on: boolean): void => ipcRenderer.send('discord:enable', on),
   discordPresence: (info: PresenceInfo | null): void => ipcRenderer.send('discord:presence', info),

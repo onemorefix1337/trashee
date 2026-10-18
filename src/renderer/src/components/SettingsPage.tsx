@@ -19,6 +19,8 @@ import { formatBytes, useAppInfo, useUpdate } from '../store/update'
 import EqualizerPanel from './EqualizerPanel'
 import PositionPicker from './PositionPicker'
 import RangeField from './RangeField'
+import { PairingCode } from './SyncSettings'
+import { useSyncSettings } from '../store/syncSettings'
 import Segmented from './Segmented'
 import Switch from './Switch'
 
@@ -275,6 +277,8 @@ export default function SettingsPage({
   const dynamicColors = useSettings((s) => s.dynamicColors)
   const closeToTray = useSettings((s) => s.closeToTray)
   const discord = useSettings((s) => s.discord)
+  const syncEnabled = useSettings((s) => s.sync)
+  const { sync, pairing, startPairing, stopPairing } = useSyncSettings()
   // Discord needs an application registered by whoever builds the app; without one the row stays hidden.
   const [discordAvailable, setDiscordAvailable] = useState(false)
   useEffect(() => {
@@ -372,8 +376,49 @@ export default function SettingsPage({
         </Row>
       </Section>
 
+      <Section title="Синхронизация" index={3}>
+        <Row
+          title="Телефон рядом"
+          hint="Передавать музыку между компьютером и телефоном в одной сети и управлять одним с другого. Пока выключено, компьютер ничего не слушает в сети."
+        >
+          <Switch
+            label="Синхронизация с телефоном"
+            checked={syncEnabled}
+            onChange={(checked) => updateSettings({ sync: checked })}
+          />
+        </Row>
+        {sync.enabled && (
+          <Row
+            title="Подключить телефон"
+            hint="Нужен trashee на телефоне, подключённом к той же Wi-Fi сети. Токен Яндекса между устройствами не передаётся."
+            stacked={pairing !== null}
+          >
+            {pairing ? (
+              <>
+                <PairingCode pairing={pairing} onExpired={stopPairing} />
+                <button className="chip" onClick={stopPairing}>
+                  Отменить
+                </button>
+              </>
+            ) : (
+              <button className="chip accent" onClick={() => void startPairing()}>
+                Показать код
+              </button>
+            )}
+          </Row>
+        )}
+        {sync.enabled &&
+          sync.devices.map((device) => (
+            <Row key={device.id} title={device.name} hint={device.online ? 'В сети' : 'Не в сети'}>
+              <button className="chip" onClick={() => window.api.syncForget(device.id)}>
+                Забыть
+              </button>
+            </Row>
+          ))}
+      </Section>
+
       {discordAvailable && (
-        <Section title="Интеграции" index={3}>
+        <Section title="Интеграции" index={4}>
           <Row
             title="Статус в Discord"
             hint="В профиле Discord будет видно, что ты слушаешь, с обложкой и полоской времени. Нужен запущенный Discord."
@@ -387,7 +432,7 @@ export default function SettingsPage({
         </Section>
       )}
 
-      <Section title="Мини-плеер" index={4}>
+      <Section title="Мини-плеер" index={5}>
         <Row
           title="Поверх всех окон"
           hint="Обложка, трек и кнопки управления в маленькой карточке. Её можно перетащить мышью."
@@ -453,9 +498,9 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <CacheSection index={5} />
+      <CacheSection index={6} />
 
-      <Section title="Горячие клавиши" index={6}>
+      <Section title="Горячие клавиши" index={7}>
         {shortcuts().map(([keys, action]) => (
           <div key={keys} className="setting-row shortcut">
             <kbd>{keys}</kbd>
@@ -464,7 +509,7 @@ export default function SettingsPage({
         ))}
       </Section>
 
-      <Section title="Аккаунт" index={7}>
+      <Section title="Аккаунт" index={8}>
         <Row title={account.login} hint={account.hasPlus ? 'Яндекс Плюс' : 'Без подписки'}>
           <motion.button
             className="chip danger"
@@ -477,7 +522,7 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <AboutSection index={8} />
+      <AboutSection index={9} />
 
       <p className="muted small about">
         trashee — неофициальный клиент Яндекс Музыки. Он использует закрытое API сервиса, которое

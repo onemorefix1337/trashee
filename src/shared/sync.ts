@@ -34,6 +34,29 @@ export interface Handoff {
   tracks: SyncTrack[]
 }
 
+/** Who a request or a command came from. */
+export interface DeviceRef {
+  id: string
+  name: string
+}
+
+/** A paired phone as the app shows it. */
+export interface DeviceStatus {
+  id: string
+  name: string
+  platform: string
+  online: boolean
+  state: NowPlaying | null
+}
+
+/** What the settings page needs to show: whether sync is on, how to reach this computer, who is paired. */
+export interface SyncStatus {
+  enabled: boolean
+  hostName: string
+  addresses: string[]
+  devices: DeviceStatus[]
+}
+
 export const SYNC_COMMANDS = [
   'toggle',
   'play',

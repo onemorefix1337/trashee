@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { offlineCover, registerIpc, streamer } from './ipc'
 import { registerDiscord } from './discord'
+import { registerSync } from './sync'
 import { destroyMini, isMiniVisible, onMiniVisibleChange, registerMini, toggleMini } from './mini'
 import { hidesOnClose, refreshTray, registerTray } from './tray'
 import { registerUpdater } from './updater'
@@ -126,6 +127,7 @@ app.whenReady().then(() => {
   registerIpc(() => mainWindow)
   registerMini(() => mainWindow)
   registerDiscord(() => mainWindow)
+  registerSync(() => mainWindow)
   registerTray({ window: () => mainWindow, toggleMini, miniVisible: isMiniVisible })
   onMiniVisibleChange(refreshTray)
   registerUpdater(() => mainWindow)
