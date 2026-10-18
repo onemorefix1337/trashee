@@ -1,7 +1,7 @@
 import { useEffect, useState, type JSX } from 'react'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import type { Account, Restore } from '../../shared/types'
-import { artistNames, coverUrl, dominantColor, type Rgb } from './lib/cover'
+import { artistNames, coverUrl, dominantColor, publicCoverUrl, type Rgb } from './lib/cover'
 import { loadPins, resetLibrary } from './store/library'
 import {
   back,
@@ -15,6 +15,7 @@ import {
 import {
   currentTrack,
   dislikeCurrent,
+  getPlayerState,
   likeCurrent,
   loadLikedIds,
   next,
@@ -96,6 +97,31 @@ function useSettingsEffects(): void {
   }, [closeToTray])
   useEffect(() => setSpeed(speed), [speed])
   useEffect(() => setEqualizer(gains), [gains])
+}
+
+/** Tells Discord what is playing, when the user switched that on. */
+function useDiscordPresence(): void {
+  const enabled = useSettings((s) => s.discord)
+  const track = usePlayer(currentTrack)
+  const playing = usePlayer((s) => s.playing)
+  const seeks = usePlayer((s) => s.seeks)
+
+  useEffect(() => window.api.setDiscord(enabled), [enabled])
+  useEffect(() => {
+    if (!enabled) return
+    if (!track || !playing) {
+      window.api.discordPresence(null)
+      return
+    }
+    const { position, duration } = getPlayerState()
+    window.api.discordPresence({
+      title: track.title,
+      artist: artistNames(track),
+      coverUrl: publicCoverUrl(track) ?? undefined,
+      durationSec: duration || track.durationMs / 1000,
+      positionSec: position
+    })
+  }, [enabled, track, playing, seeks])
 }
 
 /** Keeps the always-on-top mini player in step with the player, and lets it drive the player. */
@@ -188,6 +214,7 @@ export default function App(): JSX.Element {
   useAccent()
   useSettingsEffects()
   useMiniPlayer()
+  useDiscordPresence()
   useEffect(() => connectUpdates(), [])
   useEffect(() => connectOffline(), [])
   const appInfo = useAppInfo()

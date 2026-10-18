@@ -11,6 +11,8 @@ export interface Settings {
   sidebarCollapsed: boolean
   /** Closing the window hides it and keeps playing; null means the default of the platform. */
   closeToTray: boolean | null
+  /** Show what is playing as the user's Discord status. */
+  discord: boolean
   /** Download the next track in the queue while the current one is still playing. */
   prefetchNext: boolean
   speed: number
@@ -40,6 +42,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dynamicColors: true,
   sidebarCollapsed: false,
   closeToTray: null,
+  discord: false,
   prefetchNext: true,
   speed: 1,
   eqPreset: 'flat',
@@ -83,6 +86,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     dynamicColors: bool('dynamicColors', DEFAULT_SETTINGS.dynamicColors),
     sidebarCollapsed: bool('sidebarCollapsed', DEFAULT_SETTINGS.sidebarCollapsed),
     closeToTray: typeof input.closeToTray === 'boolean' ? input.closeToTray : null,
+    discord: bool('discord', DEFAULT_SETTINGS.discord),
     prefetchNext: bool('prefetchNext', DEFAULT_SETTINGS.prefetchNext),
     speed: clamp(speed, 0.5, 3),
     eqPreset: typeof input.eqPreset === 'string' ? input.eqPreset : DEFAULT_SETTINGS.eqPreset,

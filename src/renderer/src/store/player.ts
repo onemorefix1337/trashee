@@ -21,6 +21,8 @@ export interface PlayerState {
   wave: { sessionId: string; batchId: string } | null
   likedIds: Set<string>
   error: string | null
+  /** Counts seeks, so whoever shows the position elsewhere (Discord) knows to refresh it. */
+  seeks: number
 }
 
 // The next track is fetched in the background from the middle of the current one at the latest.
@@ -110,7 +112,8 @@ let state: PlayerState = {
   repeat: 'off',
   wave: null,
   likedIds: new Set(),
-  error: null
+  error: null,
+  seeks: 0
 }
 
 const listeners = new Set<() => void>()
@@ -130,6 +133,8 @@ const subscribe = (listener: () => void): (() => void) => {
 export function usePlayer<T>(select: (state: PlayerState) => T): T {
   return useSyncExternalStore(subscribe, () => select(state))
 }
+
+export const getPlayerState = (): PlayerState => state
 
 export const currentTrack = (s: PlayerState): Track | undefined => s.queue[s.index]
 
@@ -555,6 +560,7 @@ audio.addEventListener('timeupdate', () => {
   set({ position: audio.currentTime })
   maybePrefetch()
 })
+audio.addEventListener('seeked', () => set({ seeks: state.seeks + 1 }))
 audio.addEventListener('error', handleFailure)
 audio.addEventListener('ended', () => {
   waveFeedback('trackFinished', currentTrack(state), audio.duration)

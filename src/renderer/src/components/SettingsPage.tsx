@@ -1,4 +1,4 @@
-import type { JSX, ReactNode } from 'react'
+import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { miniShortcut } from '../../../shared/mini'
 import { SPEEDS, closeToTrayOn, type MotionLevel } from '../../../shared/settings'
@@ -274,6 +274,12 @@ export default function SettingsPage({
   const visualizer = useSettings((s) => s.visualizer)
   const dynamicColors = useSettings((s) => s.dynamicColors)
   const closeToTray = useSettings((s) => s.closeToTray)
+  const discord = useSettings((s) => s.discord)
+  // Discord needs an application registered by whoever builds the app; without one the row stays hidden.
+  const [discordAvailable, setDiscordAvailable] = useState(false)
+  useEffect(() => {
+    void window.api.discordAvailable().then(setDiscordAvailable)
+  }, [])
   const miniVisible = useMiniVisible()
   const miniAnchor = useMiniAnchor()
   const miniLook = useMiniLook()
@@ -366,7 +372,22 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <Section title="Мини-плеер" index={3}>
+      {discordAvailable && (
+        <Section title="Интеграции" index={3}>
+          <Row
+            title="Статус в Discord"
+            hint="В профиле Discord будет видно, что ты слушаешь, с обложкой и полоской времени. Нужен запущенный Discord."
+          >
+            <Switch
+              label="Статус в Discord"
+              checked={discord}
+              onChange={(checked) => updateSettings({ discord: checked })}
+            />
+          </Row>
+        </Section>
+      )}
+
+      <Section title="Мини-плеер" index={4}>
         <Row
           title="Поверх всех окон"
           hint="Обложка, трек и кнопки управления в маленькой карточке. Её можно перетащить мышью."
@@ -432,9 +453,9 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <CacheSection index={4} />
+      <CacheSection index={5} />
 
-      <Section title="Горячие клавиши" index={5}>
+      <Section title="Горячие клавиши" index={6}>
         {shortcuts().map(([keys, action]) => (
           <div key={keys} className="setting-row shortcut">
             <kbd>{keys}</kbd>
@@ -443,7 +464,7 @@ export default function SettingsPage({
         ))}
       </Section>
 
-      <Section title="Аккаунт" index={6}>
+      <Section title="Аккаунт" index={7}>
         <Row title={account.login} hint={account.hasPlus ? 'Яндекс Плюс' : 'Без подписки'}>
           <motion.button
             className="chip danger"
@@ -456,7 +477,7 @@ export default function SettingsPage({
         </Row>
       </Section>
 
-      <AboutSection index={7} />
+      <AboutSection index={8} />
 
       <p className="muted small about">
         trashee — неофициальный клиент Яндекс Музыки. Он использует закрытое API сервиса, которое

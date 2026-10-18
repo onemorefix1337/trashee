@@ -18,6 +18,7 @@ import type {
   WaveEvent
 } from '../shared/types'
 import type { MiniAnchor, MiniCommand, MiniLook, MiniTrack } from '../shared/mini'
+import type { PresenceInfo } from '../shared/discord'
 import type { AppInfo, UpdateState } from '../shared/update'
 
 const api = {
@@ -66,6 +67,9 @@ const api = {
   ): Promise<void> =>
     ipcRenderer.invoke('ym:wave-feedback', sessionId, batchId, type, trackId, playedSeconds),
 
+  discordAvailable: (): Promise<boolean> => ipcRenderer.invoke('discord:available'),
+  setDiscord: (on: boolean): void => ipcRenderer.send('discord:enable', on),
+  discordPresence: (info: PresenceInfo | null): void => ipcRenderer.send('discord:presence', info),
   setCloseToTray: (value: boolean): void => ipcRenderer.send('settings:set-close-to-tray', value),
   setQuality: (quality: Quality): Promise<void> =>
     ipcRenderer.invoke('settings:set-quality', quality),
