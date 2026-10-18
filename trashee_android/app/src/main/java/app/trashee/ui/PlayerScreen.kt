@@ -126,6 +126,9 @@ fun PlayerScreen() {
     Box(
         Modifier
             .fillMaxSize()
+            // Takes every touch that no control takes: without it the empty places of the player pass taps
+            // through to whatever screen lies under it, and a tap there starts a track in that screen's list.
+            .pointerInput(Unit) {}
             .graphicsLayer {
                 translationY = drag.value
                 alpha = 1f - (drag.value / size.height).coerceIn(0f, 0.5f)
