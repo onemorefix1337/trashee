@@ -17,7 +17,7 @@ import {
  * "Listening to"). While it is empty the setting stays hidden and nothing connects. The environment variable
  * TRASHEE_DISCORD_CLIENT_ID sets it for a try without editing the code.
  */
-export const DISCORD_CLIENT_ID = process.env.TRASHEE_DISCORD_CLIENT_ID ?? ''
+const DISCORD_CLIENT_ID = process.env.TRASHEE_DISCORD_CLIENT_ID ?? ''
 
 const RECONNECT_MS = 15_000
 const SEND_DELAY_MS = 700

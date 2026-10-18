@@ -65,7 +65,7 @@ export async function setSyncEnabled(on: boolean): Promise<void> {
   set(fromStatus(await window.api.syncEnable(on)))
 }
 
-export const toSyncTrack = (track: Track): SyncTrack => ({
+const toSyncTrack = (track: Track): SyncTrack => ({
   id: track.id,
   title: track.title,
   artist: artistNames(track),

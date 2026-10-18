@@ -23,8 +23,8 @@ import {
   wrapToken
 } from './crypto.ts'
 
-export const DEFAULT_PORT = 47874
-export const DISCOVERY_PORT = 47875
+const DEFAULT_PORT = 47874
+const DISCOVERY_PORT = 47875
 export const DISCOVER_MESSAGE = 'TRASHEE-DISCOVER 1'
 
 const CLOCK_WINDOW_MS = 120_000
@@ -43,7 +43,7 @@ export interface PairedDevice {
 }
 
 /** What the server tells the app around it; everything that touches the player goes through here. */
-export interface SyncHost {
+interface SyncHost {
   name: string
   onCommand(from: DeviceRef, command: SyncCommand): void
   onHandoff(from: DeviceRef, handoff: Handoff): void

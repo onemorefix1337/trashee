@@ -57,7 +57,7 @@ export interface SyncStatus {
   devices: DeviceStatus[]
 }
 
-export const SYNC_COMMANDS = [
+const SYNC_COMMANDS = [
   'toggle',
   'play',
   'pause',
@@ -68,7 +68,7 @@ export const SYNC_COMMANDS = [
   'like',
   'dislike'
 ] as const
-export type SyncCommandName = (typeof SYNC_COMMANDS)[number]
+type SyncCommandName = (typeof SYNC_COMMANDS)[number]
 
 export interface SyncCommand {
   cmd: SyncCommandName

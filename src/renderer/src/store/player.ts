@@ -402,7 +402,7 @@ function rememberQueue(): void {
 }
 
 /** Brings back the queue that was replaced last, at the second where it was left. */
-export function restoreQueue(): void {
+function restoreQueue(): void {
   const snapshot = previousQueue
   if (!snapshot) return
   previousQueue = null
