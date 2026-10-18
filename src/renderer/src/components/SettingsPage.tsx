@@ -4,6 +4,7 @@ import { SPEEDS, type MotionLevel } from '../../../shared/settings'
 import type { Account, Quality } from '../../../shared/types'
 import { setMiniAnchor, toggleMini, useMiniAnchor, useMiniVisible } from '../store/mini'
 import { updateSettings, useSettings } from '../store/settings'
+import { formatBytes, useAppInfo, useUpdate } from '../store/update'
 import EqualizerPanel from './EqualizerPanel'
 import PositionPicker from './PositionPicker'
 import Segmented from './Segmented'
@@ -37,6 +38,98 @@ const SHORTCUTS: [string, string][] = [
   ['⌘/Ctrl + Alt + M', 'Мини-плеер поверх всех окон, из любого приложения'],
   ['Медиаклавиши', 'Работают и когда окно не в фокусе']
 ]
+
+const PLATFORMS: Record<string, string> = { darwin: 'macOS', win32: 'Windows', linux: 'Linux' }
+
+const formatDate = (iso: string): string =>
+  iso
+    ? new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+    : '—'
+
+function updateHint(update: ReturnType<typeof useUpdate>): string {
+  const version = update.info?.version
+  switch (update.status) {
+    case 'checking':
+      return 'Проверяем…'
+    case 'available':
+      return `Доступна версия ${version}${update.info?.size ? `, ${formatBytes(update.info.size)}` : ''}.`
+    case 'downloading':
+      return `Скачиваем версию ${version}: ${update.total ? Math.round((update.received / update.total) * 100) : 0}%`
+    case 'ready':
+      return `Версия ${version} скачана.`
+    case 'error':
+      return update.error ?? 'Не удалось проверить.'
+    case 'none':
+      return `Установлена последняя версия. Проверено в ${new Date(update.checkedAt ?? Date.now()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}.`
+    default:
+      return 'Ещё не проверяли с этого запуска.'
+  }
+}
+
+function AboutSection({ index }: { index: number }): JSX.Element {
+  const info = useAppInfo()
+  const update = useUpdate()
+  const busy = update.status === 'checking' || update.status === 'downloading'
+  const hasUpdate = ['available', 'downloading', 'ready'].includes(update.status) && update.info
+
+  return (
+    <Section title="О приложении" index={index}>
+      <Row title="Версия" hint={info && !info.packaged ? 'Запущено из исходников.' : undefined}>
+        <span className="setting-value">{info?.version ?? '…'}</span>
+      </Row>
+      <Row title="Сборка" hint="Название сборки пригодится, если захочешь сообщить об ошибке.">
+        <span className="setting-value">
+          {info ? `${info.commit} · ${formatDate(info.builtAt)}` : '…'}
+        </span>
+      </Row>
+      <Row title="Система">
+        <span className="setting-value">
+          {info ? `${PLATFORMS[info.platform] ?? info.platform} · ${info.arch}` : '…'}
+        </span>
+      </Row>
+      <Row title="Движок" hint="Electron — то, на чём работает окно приложения.">
+        <span className="setting-value">
+          {info
+            ? `Electron ${info.electron} · Chromium ${info.chrome.split('.')[0]} · Node ${info.node}`
+            : '…'}
+        </span>
+      </Row>
+      <Row title="Обновления" hint={updateHint(update)}>
+        <div className="setting-buttons">
+          {hasUpdate && (
+            <motion.button
+              className="chip accent"
+              onClick={() => void window.api.update.show()}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.93 }}
+            >
+              Обновить до {update.info?.version}
+            </motion.button>
+          )}
+          <motion.button
+            className="chip"
+            disabled={busy}
+            onClick={() => void window.api.update.check()}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.93 }}
+          >
+            {update.status === 'checking' ? 'Проверяем…' : 'Проверить обновления'}
+          </motion.button>
+        </div>
+      </Row>
+      <Row
+        title="Проверять при запуске"
+        hint="Если вышла новая версия, trashee спросит, обновляться ли."
+      >
+        <Switch
+          label="Проверять обновления при запуске"
+          checked={update.auto}
+          onChange={(checked) => void window.api.update.setAuto(checked)}
+        />
+      </Row>
+    </Section>
+  )
+}
 
 function Section({
   title,
@@ -197,6 +290,8 @@ export default function SettingsPage({
           </motion.button>
         </Row>
       </Section>
+
+      <AboutSection index={5} />
 
       <p className="muted small about">
         trashee — неофициальный клиент Яндекс Музыки. Он использует закрытое API сервиса, которое

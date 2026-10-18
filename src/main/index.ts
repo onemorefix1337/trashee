@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { registerIpc, streamer } from './ipc'
 import { destroyMini, registerMini } from './mini'
+import { registerUpdater } from './updater'
 import { MIN_SIZE, loadWindowBounds, trackWindowBounds } from './window-state'
 import { coverResponse } from './yandex/stream'
 
@@ -108,6 +109,7 @@ app.whenReady().then(() => {
   )
   registerIpc()
   registerMini(() => mainWindow)
+  registerUpdater(() => mainWindow)
 
   // Default open or close DevTools by F12 in development
   // and ignore CommandOrControl + R in production.

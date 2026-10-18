@@ -16,6 +16,7 @@ import type {
   WaveEvent
 } from '../shared/types'
 import type { MiniAnchor, MiniCommand, MiniTrack } from '../shared/mini'
+import type { AppInfo, UpdateState } from '../shared/update'
 
 const api = {
   platform: process.platform,
@@ -71,6 +72,27 @@ const api = {
     const handler = (_: IpcRendererEvent, visible: boolean): void => callback(visible)
     ipcRenderer.on('mini:visible', handler)
     return () => ipcRenderer.removeListener('mini:visible', handler)
+  },
+  appInfo: (): Promise<AppInfo> => ipcRenderer.invoke('app:info'),
+  update: {
+    get: (): Promise<UpdateState> => ipcRenderer.invoke('update:get'),
+    check: (): Promise<void> => ipcRenderer.invoke('update:check'),
+    install: (): Promise<void> => ipcRenderer.invoke('update:install'),
+    cancel: (): Promise<void> => ipcRenderer.invoke('update:cancel'),
+    show: (): Promise<void> => ipcRenderer.invoke('update:show'),
+    later: (): Promise<void> => ipcRenderer.invoke('update:later'),
+    skip: (): Promise<void> => ipcRenderer.invoke('update:skip'),
+    dismiss: (): Promise<void> => ipcRenderer.invoke('update:dismiss'),
+    setAuto: (auto: boolean): Promise<void> => ipcRenderer.invoke('update:set-auto', auto),
+    openPage: (): Promise<void> => ipcRenderer.invoke('update:open-page'),
+    reveal: (): Promise<void> => ipcRenderer.invoke('update:reveal'),
+    openFile: (): Promise<void> => ipcRenderer.invoke('update:open-file'),
+    quit: (): Promise<void> => ipcRenderer.invoke('update:quit'),
+    onState: (callback: (state: UpdateState) => void): (() => void) => {
+      const handler = (_: IpcRendererEvent, state: UpdateState): void => callback(state)
+      ipcRenderer.on('update:state', handler)
+      return () => ipcRenderer.removeListener('update:state', handler)
+    }
   },
   onMiniCommand: (callback: (command: MiniCommand) => void): (() => void) => {
     const handler = (_: IpcRendererEvent, command: MiniCommand): void => callback(command)

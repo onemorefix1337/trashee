@@ -28,6 +28,7 @@ import {
 } from './store/player'
 import { connectMini } from './store/mini'
 import { useSettings } from './store/settings'
+import { connectUpdates, useAppInfo } from './store/update'
 import Ambient from './components/Ambient'
 import BackButton from './components/BackButton'
 import CollectionPage from './components/CollectionPage'
@@ -41,6 +42,7 @@ import SettingsPage from './components/SettingsPage'
 import SimilarPage from './components/SimilarPage'
 import Sidebar from './components/Sidebar'
 import ToastHost from './components/ToastHost'
+import UpdateDialog from './components/UpdateDialog'
 import Visualizer from './components/Visualizer'
 
 const SEEK_STEP = 5
@@ -167,6 +169,8 @@ export default function App(): JSX.Element {
   useAccent()
   useSettingsEffects()
   useMiniPlayer()
+  useEffect(() => connectUpdates(), [])
+  const appInfo = useAppInfo()
 
   useEffect(() => {
     void window.api.restoreSession().then((result) => {
@@ -336,6 +340,7 @@ export default function App(): JSX.Element {
   return (
     <MotionConfig reducedMotion={motionLevel === 'full' ? 'user' : 'always'}>
       <AnimatePresence mode="wait">{screen}</AnimatePresence>
+      <UpdateDialog currentVersion={appInfo?.version ?? ''} />
     </MotionConfig>
   )
 }
