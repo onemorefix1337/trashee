@@ -10,6 +10,7 @@ import {
   playlistRef
 } from './normalize'
 import { parseLrc } from '../../shared/lrc'
+import { YANDEX_SOURCE } from '../../shared/lyrics-resolve'
 import { ANDROID_CLIENT, DESKTOP_CLIENT, FILE_INFO_CODECS, fileInfoSign, lyricsSign } from './sign'
 import type {
   Account,
@@ -156,10 +157,12 @@ export class YandexMusic {
     const synced = await this.lyricsText(trackId, 'LRC')
     if (synced) {
       const lines = parseLrc(synced)
-      if (lines.length > 0) return { synced: lines, text: null }
+      if (lines.length > 0) return { synced: lines, text: null, source: YANDEX_SOURCE }
     }
     const text = (await this.lyricsText(trackId, 'TEXT'))?.trim()
-    return { synced: null, text: text || null }
+    return text
+      ? { synced: null, text, source: YANDEX_SOURCE }
+      : { synced: null, text: null, source: null }
   }
 
   /** The lyrics endpoint only hands out a link; the text itself lives behind it. */

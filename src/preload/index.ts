@@ -6,6 +6,7 @@ import type {
   CollectionRef,
   DeviceCode,
   Lyrics,
+  LyricsQuery,
   Pin,
   PlaylistInfo,
   Quality,
@@ -36,7 +37,7 @@ const api = {
     ipcRenderer.invoke('ym:set-like', id, liked),
   setDislike: (id: string, disliked: boolean): Promise<void> =>
     ipcRenderer.invoke('ym:set-dislike', id, disliked),
-  lyrics: (id: string): Promise<Lyrics> => ipcRenderer.invoke('ym:lyrics', id),
+  lyrics: (query: LyricsQuery): Promise<Lyrics> => ipcRenderer.invoke('ym:lyrics', query),
   similar: (id: string): Promise<Track[]> => ipcRenderer.invoke('ym:similar', id),
 
   pins: (): Promise<Pin[]> => ipcRenderer.invoke('ym:pins'),

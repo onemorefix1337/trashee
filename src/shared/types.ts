@@ -125,8 +125,27 @@ export interface LyricLine {
   text: string
 }
 
+/** Where a text came from, shown under it. */
+export interface LyricsSource {
+  name: string
+  url?: string
+}
+
 /** Either synced lines, or plain text, or neither when the track has no lyrics. */
 export interface Lyrics {
   synced: LyricLine[] | null
   text: string | null
+  /** Null when no source had a text. */
+  source: LyricsSource | null
+  /** An open source says the track has no words at all. */
+  instrumental?: boolean
+}
+
+/** What is needed to look a track up by name in sources that know nothing about Yandex ids. */
+export interface LyricsQuery {
+  id: string
+  title: string
+  artists: string[]
+  album?: string
+  durationSec: number
 }

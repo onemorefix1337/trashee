@@ -32,7 +32,13 @@ export default function LyricsPanel({ track }: { track: Track }): JSX.Element {
     if (cache.has(track.id)) return
     let stale = false
     window.api
-      .lyrics(track.id)
+      .lyrics({
+        id: track.id,
+        title: track.title,
+        artists: track.artists.map((artist) => artist.name),
+        album: track.albums[0]?.title,
+        durationSec: track.durationMs / 1000
+      })
       .then((lyrics) => {
         cache.set(track.id, lyrics)
         if (!stale) setLoad({ id: track.id, lyrics, failed: false })
@@ -41,7 +47,7 @@ export default function LyricsPanel({ track }: { track: Track }): JSX.Element {
     return () => {
       stale = true
     }
-  }, [track.id, attempt])
+  }, [track, attempt])
 
   const own = load?.id === track.id ? load : null
   const lyrics = cache.get(track.id) ?? own?.lyrics ?? null
@@ -119,10 +125,13 @@ export default function LyricsPanel({ track }: { track: Track }): JSX.Element {
   } else {
     body = (
       <div className="lyrics-note">
-        <p className="muted">Для этого трека текста нет</p>
+        <p className="muted">
+          {lyrics.instrumental ? 'Инструментальный трек, слов нет' : 'Для этого трека текста нет'}
+        </p>
       </div>
     )
   }
+  const hasText = lyrics !== null && (lines !== null || !!lyrics.text)
 
   return (
     <div
@@ -132,6 +141,19 @@ export default function LyricsPanel({ track }: { track: Track }): JSX.Element {
       onTouchMove={pauseFollowing}
     >
       {body}
+      {hasText && lyrics?.source && (
+        <p className="lyrics-source">
+          Источник:{' '}
+          {lyrics.source.url ? (
+            <a href={lyrics.source.url} target="_blank" rel="noreferrer">
+              {lyrics.source.name}
+            </a>
+          ) : (
+            lyrics.source.name
+          )}
+          {lines ? ' · с синхронизацией' : ' · без синхронизации'}
+        </p>
+      )}
     </div>
   )
 }

@@ -3,7 +3,10 @@ import { OAuthError, pollDeviceToken, requestDeviceCode } from './yandex/auth'
 import { YandexMusic } from './yandex/client'
 import { isAuthFailure } from './yandex/errors'
 import { TrackStreamer } from './yandex/stream'
+import { resolveLyrics } from '../shared/lyrics-resolve'
+import { sanitizeLyricsQuery } from '../shared/lyrics-query'
 import type { Account, CollectionRef, Quality, Restore, WaveEvent } from '../shared/types'
+import { OPEN_SOURCES } from './lyrics/open-sources'
 import { clearToken, loadToken, saveToken } from './store'
 
 const RESTORE_ATTEMPTS = 3
@@ -100,7 +103,11 @@ export function registerIpc(): void {
   ipcMain.handle('ym:set-dislike', (_, id: string, disliked: boolean) =>
     requireApi().setDislike(id, disliked)
   )
-  ipcMain.handle('ym:lyrics', (_, id: string) => requireApi().lyrics(id))
+  ipcMain.handle('ym:lyrics', (_, raw: unknown) => {
+    const query = sanitizeLyricsQuery(raw)
+    if (!query) throw new Error('Неверный запрос текста')
+    return resolveLyrics(query, () => requireApi().lyrics(query.id), OPEN_SOURCES)
+  })
   ipcMain.handle('ym:set-like', (_, id: string, liked: boolean) => requireApi().setLike(id, liked))
   ipcMain.handle('ym:similar', (_, id: string) => requireApi().similar(id))
   ipcMain.handle('ym:pins', () => requireApi().pins())
