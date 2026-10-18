@@ -40,6 +40,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -151,7 +153,12 @@ private fun MainShell() {
     val snackbar = remember { SnackbarHostState() }
     val hasTrack = ui.track != null
 
-    LaunchedEffect(Unit) { Toasts.events.collect { snackbar.showSnackbar(it) } }
+    LaunchedEffect(Unit) {
+        Toasts.events.collect { toast ->
+            val result = snackbar.showSnackbar(message = toast.text, actionLabel = toast.actionLabel, duration = SnackbarDuration.Short)
+            if (result == SnackbarResult.ActionPerformed) toast.action?.invoke()
+        }
+    }
     // A link shared to the app or opened with it is handled once the main screen is there.
     LaunchedEffect(Unit) {
         app.incomingLink.collect { link ->
@@ -216,8 +223,6 @@ private fun MainShell() {
                 }
             }
 
-            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).padding(bottom = bottom + 8.dp))
-
             AnimatedVisibility(
                 visible = nav.playerOpen,
                 enter = slideInVertically(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow)) { it },
@@ -225,6 +230,12 @@ private fun MainShell() {
             ) { PlayerScreen() }
 
             nav.playlistTarget?.let { PlaylistPickerSheet(it) { nav.playlistTarget = null } }
+
+            // Last, so messages (and their buttons) are above the player too, not hidden behind it.
+            SnackbarHost(
+                snackbar,
+                Modifier.align(Alignment.BottomCenter).padding(bottom = if (nav.playerOpen) navInset + 16.dp else bottom + 8.dp),
+            )
         }
     }
 }

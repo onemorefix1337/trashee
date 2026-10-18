@@ -10,16 +10,16 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/** The OAuth token, encrypted with a key that never leaves the Android Keystore. */
-class TokenStore(context: Context) {
-    private val prefs = context.getSharedPreferences("auth", Context.MODE_PRIVATE)
+/** A secret (the OAuth token, the key to the paired computer), encrypted with a key that never leaves the Android Keystore. */
+class TokenStore(context: Context, name: String = "auth", private val alias: String = "trashee_token") {
+    private val prefs = context.getSharedPreferences(name, Context.MODE_PRIVATE)
 
     private fun key(): SecretKey {
         val store = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
-        (store.getKey(ALIAS, null) as? SecretKey)?.let { return it }
+        (store.getKey(alias, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
         generator.init(
-            KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)
@@ -52,7 +52,6 @@ class TokenStore(context: Context) {
     fun clear() = prefs.edit().clear().apply()
 
     private companion object {
-        const val ALIAS = "trashee_token"
         const val TRANSFORM = "AES/GCM/NoPadding"
     }
 }

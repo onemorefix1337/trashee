@@ -30,6 +30,8 @@ class TrasheeApp : Application() {
         private set
     lateinit var engine: PlayerEngine
         private set
+    lateinit var sync: app.trashee.sync.SyncController
+        private set
 
     /** A Yandex Music link that opened or was shared to the app; the main screen takes it as soon as there is one. */
     val incomingLink = kotlinx.coroutines.flow.MutableStateFlow<app.trashee.api.YandexLink?>(null)
@@ -48,6 +50,8 @@ class TrasheeApp : Application() {
                 .components { add(OfflineCovers(offline)) }
                 .build()
         }
+        sync = app.trashee.sync.SyncController(this)
+        sync.start()
         keepWidgetCurrent(this)
         updater = Updater(this, scope)
         updater.startBackgroundChecks()

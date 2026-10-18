@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <base-config cleartextTrafficPermitted="false" />
+    <!--
+        Everything the app asks the internet for is https. Plain http is for the computer on the home network
+        (phone sync), whose address changes and cannot be listed here.
+    -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

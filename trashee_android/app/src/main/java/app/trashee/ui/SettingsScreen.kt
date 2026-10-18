@@ -178,6 +178,7 @@ fun SettingsScreen(padding: PaddingValues) {
             }
         }
         item { EqualizerCard() }
+        item { SyncCard() }
         item { CacheCard() }
         item {
             Card("Аккаунт") {

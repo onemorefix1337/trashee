@@ -99,6 +99,10 @@ class PlayerEngine(
     private val _position = MutableStateFlow(0L)
     val position: StateFlow<Long> = _position.asStateFlow()
 
+    private val _seeks = MutableStateFlow(0)
+    /** Counts seeks, so whoever shows the position elsewhere (the paired computer) knows to refresh it. */
+    val seeks: StateFlow<Int> = _seeks.asStateFlow()
+
     private val _sleep = MutableStateFlow<Sleep>(Sleep.Off)
     /** The sleep timer: off, counting down, or waiting for the current track to end. */
     val sleep: StateFlow<Sleep> = _sleep.asStateFlow()
@@ -133,6 +137,12 @@ class PlayerEngine(
                     }
                     feedback(WaveEvent.TrackStarted, track)
                     if (_ui.value.queue.size - index <= WAVE_REFILL_AT) refillWave()
+                }
+            }
+
+            override fun onPositionDiscontinuity(oldPosition: Player.PositionInfo, newPosition: Player.PositionInfo, reason: Int) {
+                if (reason == Player.DISCONTINUITY_REASON_SEEK || reason == Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT) {
+                    _seeks.update { it + 1 }
                 }
             }
 
@@ -260,7 +270,8 @@ class PlayerEngine(
 
     /* ---------- starting playback ---------- */
 
-    fun playTracks(tracks: List<Track>, startIndex: Int = 0) {
+    /** [startPositionMs] and [autoplay] are for a session taken over from the computer: the same second, playing or paused. */
+    fun playTracks(tracks: List<Track>, startIndex: Int = 0, startPositionMs: Long = 0, autoplay: Boolean = true) {
         val playable = tracks.filter { it.available }
         val start = playable.indexOf(tracks.getOrNull(startIndex))
         if (playable.isEmpty() || start < 0) return
@@ -268,10 +279,10 @@ class PlayerEngine(
         lastTrack = null
         consecutiveErrors = 0
         _ui.update { it.copy(queue = playable, index = start, wave = false, error = null, durationMs = playable[start].durationMs) }
-        player.setMediaItems(playable.map(::mediaItem), start, 0)
+        player.setMediaItems(playable.map(::mediaItem), start, startPositionMs)
         player.shuffleModeEnabled = _ui.value.shuffle
         player.prepare()
-        player.play()
+        if (autoplay) player.play() else player.pause()
     }
 
     fun startWave(seed: String? = null) {
