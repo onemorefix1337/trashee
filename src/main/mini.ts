@@ -3,20 +3,24 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import {
-  MINI_SIZE,
   anchorPosition,
   isMiniAnchor,
   isMiniCommand,
+  mergeMiniLook,
   miniShortcut,
+  miniWindowSize,
   sanitizeMiniConfig,
   sanitizeMiniTrack,
   type MiniConfig,
+  type MiniLook,
   type MiniTrack
 } from '../shared/mini'
 import { restoreBounds } from '../shared/window-bounds'
 
 const SHORTCUT = miniShortcut(process.platform).accelerator
 const SAVE_DELAY_MS = 300
+// A slider sends a value for every pixel it moves; the file is written once it stops.
+const LOOK_SAVE_DELAY_MS = 250
 // The card plays its closing animation first; if it never answers, the window hides anyway.
 const HIDE_FALLBACK_MS = 450
 // A move this small is rounding, not the user dragging the card.
@@ -39,6 +43,7 @@ let visible = false
 let lastTrack: MiniTrack | null = null
 let hideTimer: ReturnType<typeof setTimeout> | undefined
 let saveTimer: ReturnType<typeof setTimeout> | undefined
+let lookTimer: ReturnType<typeof setTimeout> | undefined
 let getPlayerWindow: () => BrowserWindow | null = () => null
 
 function saveConfig(): void {
@@ -49,27 +54,53 @@ function saveConfig(): void {
   }
 }
 
+const lookOf = ({ opacity, width, height, lyrics }: MiniConfig): MiniLook => ({
+  opacity,
+  width,
+  height,
+  lyrics
+})
+
 /** Where the card belongs now: where it was dragged to if that is still on a screen, else its anchor. */
 function desiredPosition(): { x: number; y: number } {
   const displays = screen.getAllDisplays()
+  const size = miniWindowSize(config)
   if (config.custom) {
     const restored = restoreBounds(
       config.custom,
       displays.map((display) => display.workArea),
-      MINI_SIZE,
-      MINI_SIZE
+      size,
+      size
     )
     if (restored.x !== undefined && restored.y !== undefined)
       return { x: restored.x, y: restored.y }
   }
   const area = screen.getDisplayNearestPoint(screen.getCursorScreenPoint()).workArea
-  return anchorPosition(config.anchor, area)
+  return anchorPosition(config.anchor, area, size)
 }
 
 function place(): void {
   if (!window || window.isDestroyed()) return
   const { x, y } = desiredPosition()
-  window.setBounds({ x, y, ...MINI_SIZE })
+  window.setBounds({ x, y, ...miniWindowSize(config) })
+}
+
+/** Tells the card how to look, and the player what the settings and the card agree on. */
+function sendLook(): void {
+  const look = lookOf(config)
+  if (window && !window.isDestroyed()) window.webContents.send('mini:look', look)
+  const player = getPlayerWindow()
+  if (player && !player.isDestroyed()) player.webContents.send('mini:look', look)
+}
+
+/** Takes a change of size, opacity or the open lyrics line from the settings or from the card. */
+function changeLook(patch: unknown): void {
+  const next = mergeMiniLook(lookOf(config), patch)
+  config = { ...config, ...next }
+  clearTimeout(lookTimer)
+  lookTimer = setTimeout(saveConfig, LOOK_SAVE_DELAY_MS)
+  if (visible) place()
+  sendLook()
 }
 
 /** Dragging the card is the only way it moves by itself; remember where it was left. */
@@ -85,14 +116,14 @@ function rememberDrag(): void {
     ) {
       return
     }
-    config = { anchor: config.anchor, custom: { x, y } }
+    config = { ...config, custom: { x, y } }
     saveConfig()
   }, SAVE_DELAY_MS)
 }
 
 function createWindow(): BrowserWindow {
   const created = new BrowserWindow({
-    ...MINI_SIZE,
+    ...miniWindowSize(config),
     show: false,
     frame: false,
     transparent: true,
@@ -147,6 +178,7 @@ export async function showMini(): Promise<void> {
   await loaded
   if (target.isDestroyed()) return
   place()
+  target.webContents.send('mini:look', lookOf(config))
   target.webContents.send('mini:state', lastTrack)
   target.showInactive()
   target.webContents.send('mini:show')
@@ -175,6 +207,7 @@ export function toggleMini(): void {
 export function destroyMini(): void {
   clearTimeout(hideTimer)
   clearTimeout(saveTimer)
+  clearTimeout(lookTimer)
   visible = false
   lastTrack = null
   if (window && !window.isDestroyed()) window.destroy()
@@ -209,12 +242,19 @@ export function registerMini(playerWindow: () => BrowserWindow | null): void {
   ipcMain.handle('mini:toggle', (event) => {
     if (fromPlayer(event.sender)) toggleMini()
   })
-  ipcMain.handle('mini:config', () => ({ anchor: config.anchor, visible }))
+  ipcMain.handle('mini:config', () => ({ anchor: config.anchor, visible, ...lookOf(config) }))
   ipcMain.handle('mini:set-anchor', (event, anchor: unknown) => {
     if (!fromPlayer(event.sender) || !isMiniAnchor(anchor)) return
-    config = { anchor }
+    // Picking a spot sends the card back to it, so a dragged position is forgotten; the look stays.
+    config = { ...config, anchor, custom: undefined }
     saveConfig()
     if (visible) place()
+  })
+  ipcMain.handle('mini:set-look', (event, patch: unknown) => {
+    if (fromPlayer(event.sender)) changeLook(patch)
+  })
+  ipcMain.on('mini:set-lyrics', (event, open: unknown) => {
+    if (fromCard(event.sender) && typeof open === 'boolean') changeLook({ lyrics: open })
   })
 
   ipcMain.on('mini:command', (event, command: unknown) => {

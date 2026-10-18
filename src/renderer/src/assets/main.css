@@ -607,6 +607,20 @@ input:focus-visible {
   width: 100%;
   height: 22px;
 }
+.range-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 260px;
+}
+.range-value {
+  flex: none;
+  min-width: 54px;
+  text-align: right;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
 .seek-track {
   position: absolute;
   left: 0;
@@ -1208,6 +1222,10 @@ input:focus-visible {
 }
 .sidebar > * {
   -webkit-app-region: no-drag;
+}
+/* The account menu opens upwards; it must not slip under the mini player. */
+.sidebar:has(.account-menu) {
+  z-index: 6;
 }
 .brand {
   display: flex;

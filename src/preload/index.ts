@@ -17,7 +17,7 @@ import type {
   WaveBatch,
   WaveEvent
 } from '../shared/types'
-import type { MiniAnchor, MiniCommand, MiniTrack } from '../shared/mini'
+import type { MiniAnchor, MiniCommand, MiniLook, MiniTrack } from '../shared/mini'
 import type { AppInfo, UpdateState } from '../shared/update'
 
 const api = {
@@ -84,8 +84,15 @@ const api = {
 
   miniState: (track: MiniTrack | null): void => ipcRenderer.send('mini:state', track),
   miniToggle: (): Promise<void> => ipcRenderer.invoke('mini:toggle'),
-  miniConfig: (): Promise<{ anchor: MiniAnchor; visible: boolean }> =>
+  miniConfig: (): Promise<{ anchor: MiniAnchor; visible: boolean } & MiniLook> =>
     ipcRenderer.invoke('mini:config'),
+  miniSetLook: (look: Partial<MiniLook>): Promise<void> =>
+    ipcRenderer.invoke('mini:set-look', look),
+  onMiniLook: (callback: (look: MiniLook) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, look: MiniLook): void => callback(look)
+    ipcRenderer.on('mini:look', handler)
+    return () => ipcRenderer.removeListener('mini:look', handler)
+  },
   miniSetAnchor: (anchor: MiniAnchor): Promise<void> =>
     ipcRenderer.invoke('mini:set-anchor', anchor),
   onMiniVisible: (callback: (visible: boolean) => void): (() => void) => {

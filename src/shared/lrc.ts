@@ -1,4 +1,7 @@
-import type { LyricLine } from './types'
+import type { LyricLine, Lyrics } from './types'
+
+/** A stamp marks the start of a line, so whoever shows the current line leads it by this much. */
+export const LYRIC_LEAD_SECONDS = 0.25
 
 const TIMESTAMP = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g
 const OFFSET = /^\[offset:\s*([+-]?\d+)\s*\]/i
@@ -51,4 +54,18 @@ export function activeLine(lines: LyricLine[], position: number): number {
     }
   }
   return found
+}
+
+/**
+ * The one line the card shows under the controls: the line being sung when the lyrics are synced,
+ * a short note when they are not or there are none, and nothing until they are known (or before the first line).
+ */
+export function miniLine(lyrics: Lyrics | null | undefined, position: number): string {
+  if (!lyrics) return ''
+  if (lyrics.synced) {
+    const active = activeLine(lyrics.synced, position + LYRIC_LEAD_SECONDS)
+    return active < 0 ? '' : lyrics.synced[active].text || '♪'
+  }
+  if (lyrics.text) return 'Текст без синхронизации'
+  return lyrics.instrumental ? 'Инструментальный трек' : 'Для этого трека текста нет'
 }

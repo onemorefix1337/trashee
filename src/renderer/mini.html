@@ -11,8 +11,10 @@
 
   <body>
     <div id="card">
-      <div class="bg" id="bg1"></div>
-      <div class="bg" id="bg2"></div>
+      <div id="bgs">
+        <div class="bg" id="bg1"></div>
+        <div class="bg" id="bg2"></div>
+      </div>
 
       <div id="shell">
         <div class="corner">
@@ -133,6 +135,31 @@
             </svg>
           </button>
         </div>
+
+        <div id="lyric-band">
+          <div id="lyric-line"></div>
+        </div>
+
+        <button
+          id="expand"
+          title="Показать строку текста"
+          aria-label="Показать строку текста"
+          aria-expanded="false"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.6"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
       </div>
     </div>
     <script type="module" src="/src/mini/mini.ts"></script>

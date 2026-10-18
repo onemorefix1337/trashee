@@ -4,12 +4,21 @@ import { miniShortcut } from '../../../shared/mini'
 import { SPEEDS, type MotionLevel } from '../../../shared/settings'
 import type { Account, Quality } from '../../../shared/types'
 import { formatBytes as sizeText, removeOffline, useCacheInfo } from '../store/offline'
-import { setMiniAnchor, toggleMini, useMiniAnchor, useMiniVisible } from '../store/mini'
+import {
+  setMiniAnchor,
+  setMiniLook,
+  toggleMini,
+  useMiniAnchor,
+  useMiniLook,
+  useMiniVisible
+} from '../store/mini'
+import { DEFAULT_MINI_LOOK, MINI_LIMITS } from '../../../shared/mini'
 import { trackWord } from '../lib/cover'
 import { updateSettings, useSettings } from '../store/settings'
 import { formatBytes, useAppInfo, useUpdate } from '../store/update'
 import EqualizerPanel from './EqualizerPanel'
 import PositionPicker from './PositionPicker'
+import RangeField from './RangeField'
 import Segmented from './Segmented'
 import Switch from './Switch'
 
@@ -266,6 +275,7 @@ export default function SettingsPage({
   const dynamicColors = useSettings((s) => s.dynamicColors)
   const miniVisible = useMiniVisible()
   const miniAnchor = useMiniAnchor()
+  const miniLook = useMiniLook()
 
   return (
     <div className="page settings">
@@ -343,6 +353,60 @@ export default function SettingsPage({
         </Row>
         <Row title="Положение" hint="Выбор места возвращает карточку на него после перетаскивания.">
           <PositionPicker value={miniAnchor} onChange={setMiniAnchor} />
+        </Row>
+        <Row title="Прозрачность" hint="Фон карточки. Текст и кнопки остаются чёткими.">
+          <RangeField
+            label="Прозрачность мини-плеера"
+            value={Math.round((1 - miniLook.opacity) * 100)}
+            min={0}
+            max={Math.round((1 - MINI_LIMITS.opacity.min) * 100)}
+            format={(value) => `${value}%`}
+            onChange={(value) => setMiniLook({ opacity: 1 - value / 100 })}
+          />
+        </Row>
+        <Row title="Ширина">
+          <RangeField
+            label="Ширина мини-плеера"
+            value={miniLook.width}
+            min={MINI_LIMITS.width.min}
+            max={MINI_LIMITS.width.max}
+            format={(value) => `${value} px`}
+            onChange={(value) => setMiniLook({ width: value })}
+          />
+        </Row>
+        <Row title="Высота">
+          <RangeField
+            label="Высота мини-плеера"
+            value={miniLook.height}
+            min={MINI_LIMITS.height.min}
+            max={MINI_LIMITS.height.max}
+            format={(value) => `${value} px`}
+            onChange={(value) => setMiniLook({ height: value })}
+          />
+        </Row>
+        <Row
+          title="Строка текста"
+          hint="Стрелка внизу карточки открывает одну строчку текста под кнопками. Её можно включить и здесь."
+        >
+          <Switch
+            label="Строка текста в мини-плеере"
+            checked={miniLook.lyrics}
+            onChange={(checked) => setMiniLook({ lyrics: checked })}
+          />
+        </Row>
+        <Row title="Вернуть как было" hint="Стандартные размер и прозрачность.">
+          <button
+            className="chip"
+            onClick={() =>
+              setMiniLook({
+                opacity: DEFAULT_MINI_LOOK.opacity,
+                width: DEFAULT_MINI_LOOK.width,
+                height: DEFAULT_MINI_LOOK.height
+              })
+            }
+          >
+            Сбросить
+          </button>
         </Row>
       </Section>
 

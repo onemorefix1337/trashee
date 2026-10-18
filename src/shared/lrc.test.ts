@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { activeLine, parseLrc } from './lrc.ts'
+import { activeLine, miniLine, parseLrc } from './lrc.ts'
 
 test('parses stamps with different precision and sorts by time', () => {
   const lines = parseLrc('[00:12.5]second\n[00:03]first\n[01:02.345]third\n[00:20.50]fourth')
@@ -65,4 +65,38 @@ test('activeLine finds the line being sung', () => {
   assert.equal(activeLine(lines, 15), 2)
   assert.equal(activeLine(lines, 999), 2)
   assert.equal(activeLine([], 3), -1)
+})
+
+test('the card shows the line being sung, a little ahead of its stamp', () => {
+  const lyrics = {
+    synced: [
+      { time: 5, text: 'первая' },
+      { time: 10, text: '' },
+      { time: 15, text: 'третья' }
+    ],
+    text: null,
+    source: null
+  }
+  assert.equal(miniLine(lyrics, 1), '')
+  assert.equal(miniLine(lyrics, 5), 'первая')
+  assert.equal(miniLine(lyrics, 9.8), '♪')
+  assert.equal(miniLine(lyrics, 14.9), 'третья')
+  assert.equal(miniLine(lyrics, 200), 'третья')
+})
+
+test('without synced lyrics the card says why there is no line', () => {
+  assert.equal(miniLine(null, 3), '')
+  assert.equal(miniLine(undefined, 3), '')
+  assert.equal(
+    miniLine({ synced: null, text: 'слова', source: null }, 3),
+    'Текст без синхронизации'
+  )
+  assert.equal(
+    miniLine({ synced: null, text: null, source: null, instrumental: true }, 3),
+    'Инструментальный трек'
+  )
+  assert.equal(
+    miniLine({ synced: null, text: null, source: null }, 3),
+    'Для этого трека текста нет'
+  )
 })

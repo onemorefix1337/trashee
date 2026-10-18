@@ -25,9 +25,16 @@ body {
   inset: 0;
   border-radius: 20px;
   overflow: hidden;
-  background: #0b0b0d;
+  /* --a is the opacity chosen in the settings; it only thins the background, never the text. */
+  background: rgb(11 11 13 / var(--a, 1));
   border: 1px solid rgba(255, 255, 255, 0.09);
   -webkit-app-region: drag;
+}
+
+#bgs {
+  position: absolute;
+  inset: 0;
+  opacity: var(--a, 1);
 }
 
 .bg {
@@ -119,8 +126,8 @@ body {
 #art-wrap {
   position: relative;
   flex-shrink: 0;
-  width: 84px;
-  height: 84px;
+  width: var(--art, 84px);
+  height: var(--art, 84px);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
@@ -160,7 +167,7 @@ body {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
-  font-size: 30px;
+  font-size: calc(var(--art, 84px) * 0.36);
   color: rgba(255, 255, 255, 0.25);
   transition: opacity 0.3s;
 }
@@ -244,7 +251,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 17px;
+  font-size: clamp(15px, calc(var(--art, 84px) * 0.2), 22px);
   font-weight: 700;
   line-height: 1.25;
   color: #fff;
@@ -429,6 +436,60 @@ body {
   margin: 0 2px;
   flex-shrink: 0;
   background: rgba(255, 255, 255, 0.1);
+}
+
+/* One line of the lyrics under the controls, opened with the arrow at the bottom edge. */
+#lyric-band {
+  flex: none;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  display: flex;
+  justify-content: center;
+  padding: 0 30px;
+  transition: opacity 0.25s ease 0.05s;
+}
+.lyrics-open #lyric-band {
+  height: var(--band, 44px);
+  opacity: 1;
+}
+#lyric-line {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}
+
+#expand {
+  position: absolute;
+  left: 50%;
+  bottom: 1px;
+  width: 44px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.32);
+  cursor: pointer;
+  transform: translateX(-50%);
+  -webkit-app-region: no-drag;
+  transition: color 0.15s;
+}
+#expand:hover,
+.lyrics-open #expand {
+  color: rgba(255, 255, 255, 0.75);
+}
+#expand svg {
+  transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+.lyrics-open #expand svg {
+  transform: rotate(180deg);
 }
 
 @media (prefers-reduced-motion: reduce) {

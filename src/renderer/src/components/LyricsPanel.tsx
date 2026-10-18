@@ -1,14 +1,11 @@
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { motion } from 'motion/react'
-import { activeLine } from '../../../shared/lrc'
+import { LYRIC_LEAD_SECONDS, activeLine } from '../../../shared/lrc'
 import type { Lyrics, Track } from '../../../shared/types'
+import { cachedLyrics, loadLyrics } from '../lib/lyrics'
 import { seek, usePlayer } from '../store/player'
 
-// A stamp marks the start of a line, so the highlight leads it a little.
-const LEAD_SECONDS = 0.25
 const USER_SCROLL_PAUSE_MS = 3500
-
-const cache = new Map<string, Lyrics>()
 
 interface Load {
   id: string
@@ -29,20 +26,10 @@ export default function LyricsPanel({ track }: { track: Track }): JSX.Element {
   const pausedUntil = useRef(0)
 
   useEffect(() => {
-    if (cache.has(track.id)) return
+    if (cachedLyrics(track.id)) return
     let stale = false
-    window.api
-      .lyrics({
-        id: track.id,
-        title: track.title,
-        artists: track.artists.map((artist) => artist.name),
-        album: track.albums[0]?.title,
-        durationSec: track.durationMs / 1000
-      })
-      .then((lyrics) => {
-        cache.set(track.id, lyrics)
-        if (!stale) setLoad({ id: track.id, lyrics, failed: false })
-      })
+    loadLyrics(track)
+      .then((lyrics) => !stale && setLoad({ id: track.id, lyrics, failed: false }))
       .catch(() => !stale && setLoad({ id: track.id, lyrics: null, failed: true }))
     return () => {
       stale = true
@@ -50,10 +37,10 @@ export default function LyricsPanel({ track }: { track: Track }): JSX.Element {
   }, [track, attempt])
 
   const own = load?.id === track.id ? load : null
-  const lyrics = cache.get(track.id) ?? own?.lyrics ?? null
+  const lyrics = cachedLyrics(track.id) ?? own?.lyrics ?? null
   const failed = own?.failed === true
   const lines = lyrics?.synced ?? null
-  const active = lines ? activeLine(lines, position + LEAD_SECONDS) : -1
+  const active = lines ? activeLine(lines, position + LYRIC_LEAD_SECONDS) : -1
 
   useEffect(() => {
     box.current?.scrollTo({ top: 0 })

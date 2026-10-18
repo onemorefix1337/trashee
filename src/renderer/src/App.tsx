@@ -26,7 +26,7 @@ import {
   toggle,
   usePlayer
 } from './store/player'
-import { connectMini } from './store/mini'
+import { connectMini, useMiniLine, useMiniLook, useMiniVisible } from './store/mini'
 import { connectOffline } from './store/offline'
 import { useSettings } from './store/settings'
 import { connectUpdates, useAppInfo } from './store/update'
@@ -97,6 +97,9 @@ function useMiniPlayer(): void {
   const track = usePlayer(currentTrack)
   const playing = usePlayer((s) => s.playing)
   const liked = usePlayer((s) => (track ? s.likedIds.has(track.id) : false))
+  const shown = useMiniVisible()
+  const lyricsOpen = useMiniLook().lyrics
+  const line = useMiniLine(track, shown && lyricsOpen)
 
   useEffect(() => connectMini(), [])
   useEffect(() => {
@@ -107,11 +110,12 @@ function useMiniPlayer(): void {
             artist: artistNames(track),
             coverUri: track.coverUri,
             playing,
-            liked
+            liked,
+            line
           }
         : null
     )
-  }, [track, playing, liked])
+  }, [track, playing, liked, line])
   useEffect(
     () =>
       window.api.onMiniCommand((command) => {

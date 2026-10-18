@@ -1,4 +1,10 @@
-import type { MiniCommand, MiniTrack } from '../../../shared/mini'
+import {
+  MINI_LYRICS_HEIGHT,
+  miniArtSize,
+  type MiniCommand,
+  type MiniLook,
+  type MiniTrack
+} from '../../../shared/mini'
 import { coverUrl, dominantColor } from '../lib/cover'
 import './mini.css'
 
@@ -17,6 +23,7 @@ const eq = $('eq-wrap')
 const bars = [...document.querySelectorAll<HTMLElement>('.bar')]
 const playButton = $('pbtn')
 const likeButton = $('btn-like')
+const expandButton = $('expand')
 
 /** Fades a line out, swaps its text, and slides it back in; nothing happens if the text is the same. */
 function setText(element: HTMLElement, text: string): void {
@@ -88,12 +95,28 @@ function showCover(coverUri: string | undefined): void {
   probe.src = url
 }
 
+/** Opacity, size and the open lyrics line, as the main process decided them. */
+let lyricsOpen = false
+function applyLook(look: MiniLook): void {
+  const style = document.documentElement.style
+  style.setProperty('--a', String(look.opacity))
+  style.setProperty('--art', `${miniArtSize(look.height)}px`)
+  style.setProperty('--band', `${MINI_LYRICS_HEIGHT}px`)
+  lyricsOpen = look.lyrics
+  shell.classList.toggle('lyrics-open', lyricsOpen)
+  expandButton.setAttribute('aria-expanded', String(lyricsOpen))
+  const label = lyricsOpen ? 'Скрыть строку текста' : 'Показать строку текста'
+  expandButton.title = label
+  expandButton.setAttribute('aria-label', label)
+}
+
 let lastPlaying: boolean | null = null
 let lastLiked: boolean | null = null
 
 function render(track: MiniTrack | null): void {
   setText($('track-name'), track?.title || IDLE_TITLE)
   setText($('artist-name'), track?.artist ?? '')
+  setText($('lyric-line'), track?.line ?? '')
 
   const playing = track?.playing === true
   if (playing !== lastPlaying) {
@@ -128,9 +151,11 @@ document.querySelectorAll<HTMLElement>('[data-cmd]').forEach((button) => {
     send(command)
   })
 })
+expandButton.addEventListener('click', () => window.mini.setLyrics(!lyricsOpen))
 $('open').addEventListener('click', () => send('open'))
 $('close').addEventListener('click', () => window.mini.close())
 
+window.mini.onLook(applyLook)
 window.mini.onState(render)
 window.mini.onShow(() => {
   shell.classList.remove('out')
