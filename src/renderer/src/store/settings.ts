@@ -23,6 +23,11 @@ export function useSettings<T>(select: (settings: Settings) => T): T {
   return useSyncExternalStore(subscribe, () => select(settings))
 }
 
+/** For code that is not a component: told whenever a setting changes. */
+export function subscribeSettings(listener: () => void): () => void {
+  return subscribe(listener)
+}
+
 export function getSettings(): Settings {
   return settings
 }

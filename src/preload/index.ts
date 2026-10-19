@@ -28,6 +28,7 @@ import type {
   SyncStatus
 } from '../shared/sync'
 import type { AppInfo, UpdateState } from '../shared/update'
+import type { VoiceEvent, VoiceModelState } from '../shared/voice'
 
 const api = {
   platform: process.platform,
@@ -75,6 +76,22 @@ const api = {
   ): Promise<void> =>
     ipcRenderer.invoke('ym:wave-feedback', sessionId, batchId, type, trackId, playedSeconds),
 
+  voiceModelState: (): Promise<VoiceModelState> => ipcRenderer.invoke('voice:state'),
+  voiceDownload: (): Promise<VoiceModelState> => ipcRenderer.invoke('voice:download'),
+  voiceCancelDownload: (): Promise<void> => ipcRenderer.invoke('voice:cancel'),
+  voiceRemoveModel: (): Promise<VoiceModelState> => ipcRenderer.invoke('voice:remove'),
+  voiceListen: (on: boolean): Promise<{ ok: boolean; error?: string }> =>
+    ipcRenderer.invoke('voice:listen', on),
+  onVoiceEvent: (callback: (event: VoiceEvent) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, event: VoiceEvent): void => callback(event)
+    ipcRenderer.on('voice:event', handler)
+    return () => ipcRenderer.removeListener('voice:event', handler)
+  },
+  onVoiceModelState: (callback: (state: VoiceModelState) => void): (() => void) => {
+    const handler = (_: IpcRendererEvent, state: VoiceModelState): void => callback(state)
+    ipcRenderer.on('voice:state', handler)
+    return () => ipcRenderer.removeListener('voice:state', handler)
+  },
   syncEnable: (on: boolean): Promise<SyncStatus> => ipcRenderer.invoke('sync:enable', on),
   syncStatus: (): Promise<SyncStatus | null> => ipcRenderer.invoke('sync:status'),
   syncPair: (): Promise<{ code: string; expiresAt: number; addresses: string[] } | null> =>

@@ -13,6 +13,8 @@ export interface Settings {
   closeToTray: boolean | null
   /** Show what is playing as the user's Discord status. */
   discord: boolean
+  /** Listen to the microphone for spoken commands: "trashee, дальше". */
+  voice: boolean
   /** Let the phone find this computer on the home network: handing over playback and remote control. */
   sync: boolean
   /** Download the next track in the queue while the current one is still playing. */
@@ -45,6 +47,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sidebarCollapsed: false,
   closeToTray: null,
   discord: false,
+  voice: false,
   sync: false,
   prefetchNext: true,
   speed: 1,
@@ -90,6 +93,7 @@ export function sanitizeSettings(raw: unknown): Settings {
     sidebarCollapsed: bool('sidebarCollapsed', DEFAULT_SETTINGS.sidebarCollapsed),
     closeToTray: typeof input.closeToTray === 'boolean' ? input.closeToTray : null,
     discord: bool('discord', DEFAULT_SETTINGS.discord),
+    voice: bool('voice', DEFAULT_SETTINGS.voice),
     sync: bool('sync', DEFAULT_SETTINGS.sync),
     prefetchNext: bool('prefetchNext', DEFAULT_SETTINGS.prefetchNext),
     speed: clamp(speed, 0.5, 3),

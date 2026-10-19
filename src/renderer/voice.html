@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>trashee voice</title>
+    <!--
+      The window that listens to the microphone. It shows nothing and loads nothing from the network. The speech
+      recognizer is a WebAssembly build that needs to evaluate code ('unsafe-eval'); that is allowed here, where
+      the only content is this app's own script, and not in the window that shows music and covers.
+    -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; worker-src 'self' blob:; connect-src 'self' blob: data:"
+    />
+  </head>
+  <body>
+    <script type="module" src="/src/voice/voice.ts"></script>
+  </body>
+</html>

@@ -28,6 +28,8 @@ mac:
   # Ad-hoc signature: valid for Apple Silicon without a paid developer account. Put a real
   # "Developer ID Application" identity here (and enable notarization) to remove the Gatekeeper warning.
   identity: '-'
+  extendInfo:
+    NSMicrophoneUsageDescription: Микрофон нужен для голосового управления («trashee, дальше»). Звук не записывается и никуда не отправляется.
   entitlementsInherit: build/entitlements.mac.plist
   notarize: false
 win:

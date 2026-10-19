@@ -32,6 +32,7 @@ import { connectOffline } from './store/offline'
 import { useSettings } from './store/settings'
 import { closeToTrayOn } from '../../shared/settings'
 import { connectSync, describeNowPlaying, setSyncEnabled, useSync } from './store/sync'
+import { connectVoice } from './store/voice'
 import { connectUpdates, useAppInfo } from './store/update'
 import Ambient from './components/Ambient'
 import BackButton from './components/BackButton'
@@ -115,6 +116,7 @@ function useSyncPublisher(): void {
     void setSyncEnabled(enabled)
   }, [enabled])
   useEffect(() => connectSync(), [])
+  useEffect(() => connectVoice(), [])
   useEffect(() => {
     if (!running) return
     const publish = (): void => window.api.syncPublish(describeNowPlaying())

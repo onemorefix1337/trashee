@@ -27,7 +27,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/preload/index.ts'),
-          mini: resolve('src/preload/mini.ts')
+          mini: resolve('src/preload/mini.ts'),
+          voice: resolve('src/preload/voice.ts')
         }
       }
     }
@@ -43,7 +44,8 @@ export default defineConfig({
       rollupOptions: {
         input: {
           index: resolve('src/renderer/index.html'),
-          mini: resolve('src/renderer/mini.html')
+          mini: resolve('src/renderer/mini.html'),
+          voice: resolve('src/renderer/voice.html')
         }
       }
     }

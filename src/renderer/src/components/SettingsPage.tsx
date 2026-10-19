@@ -2,6 +2,7 @@ import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { miniShortcut } from '../../../shared/mini'
 import { SPEEDS, closeToTrayOn, type MotionLevel } from '../../../shared/settings'
+import { VOICE_COMMANDS } from '../../../shared/voice'
 import type { Account, Quality } from '../../../shared/types'
 import { formatBytes as sizeText, removeOffline, useCacheInfo } from '../store/offline'
 import {
@@ -21,6 +22,13 @@ import PositionPicker from './PositionPicker'
 import RangeField from './RangeField'
 import { PairingCode } from './SyncSettings'
 import { useSyncSettings } from '../store/syncSettings'
+import {
+  cancelVoiceDownload,
+  removeVoiceModel,
+  retryVoice,
+  setVoiceEnabled,
+  useVoice
+} from '../store/voice'
 import Segmented from './Segmented'
 import Switch from './Switch'
 
@@ -215,6 +223,75 @@ function AboutSection({ index }: { index: number }): JSX.Element {
           onChange={(checked) => void window.api.update.setAuto(checked)}
         />
       </Row>
+    </Section>
+  )
+}
+
+/** Spoken commands: the switch, what the microphone is doing, and what can be said. */
+function VoiceSection(): JSX.Element {
+  const enabled = useSettings((s) => s.voice)
+  const phase = useVoice((s) => s.phase)
+  const heard = useVoice((s) => s.heard)
+  const error = useVoice((s) => s.error)
+  const model = useVoice((s) => s.model)
+
+  const status = (): { text: string; action?: { label: string; run: () => void } } | null => {
+    if (!enabled) return null
+    if (model.status === 'downloading') {
+      return {
+        text: `Скачиваю модель распознавания: ${formatBytes(model.received)} из ${formatBytes(model.total)}`,
+        action: { label: 'Отменить', run: cancelVoiceDownload }
+      }
+    }
+    if (phase === 'error')
+      return { text: error ?? 'Не получилось', action: { label: 'Повторить', run: retryVoice } }
+    if (phase === 'starting') return { text: 'Запускаю…' }
+    if (phase === 'listening') return { text: heard ? `Слушаю. Услышал: «${heard}»` : 'Слушаю' }
+    return null
+  }
+  const current = status()
+
+  return (
+    <Section title="Голос" index={4}>
+      <Row
+        title="Голосовое управление"
+        hint="Скажи «trashee, дальше» или просто «дальше». Всё распознаётся на компьютере, без интернета, звук нигде не сохраняется. В наушниках надёжнее: колонки слышны микрофону."
+      >
+        <Switch label="Голосовое управление" checked={enabled} onChange={setVoiceEnabled} />
+      </Row>
+      {current && (
+        <Row title="Состояние" hint={current.text}>
+          {current.action && (
+            <button className="chip" onClick={current.action.run}>
+              {current.action.label}
+            </button>
+          )}
+        </Row>
+      )}
+      <Row
+        title="Команды"
+        hint="Одна команда без лишних слов сработает сама. Со словом «trashee» можно говорить свободнее: «trashee, поставь на паузу»."
+        stacked
+      >
+        <ul className="voice-commands">
+          {VOICE_COMMANDS.map((command) => (
+            <li key={command.type}>
+              <span>{command.label}</span>
+              <span className="muted">{command.phrases.slice(0, 3).join(', ')}</span>
+            </li>
+          ))}
+        </ul>
+      </Row>
+      {model.status === 'ready' && !enabled && (
+        <Row
+          title="Модель распознавания"
+          hint={`Занимает ${formatBytes(model.total)}. Скачается снова, когда включишь голос.`}
+        >
+          <button className="chip" onClick={removeVoiceModel}>
+            Удалить
+          </button>
+        </Row>
+      )}
     </Section>
   )
 }
@@ -431,6 +508,8 @@ export default function SettingsPage({
           </Row>
         </Section>
       )}
+
+      <VoiceSection />
 
       <Section title="Мини-плеер" index={5}>
         <Row

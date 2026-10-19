@@ -5,6 +5,7 @@ import icon from '../../resources/icon.png?asset'
 import { offlineCover, registerIpc, streamer } from './ipc'
 import { registerDiscord } from './discord'
 import { registerSync } from './sync'
+import { registerVoice } from './voice'
 import { destroyMini, isMiniVisible, onMiniVisibleChange, registerMini, toggleMini } from './mini'
 import { hidesOnClose, refreshTray, registerTray } from './tray'
 import { registerUpdater } from './updater'
@@ -128,6 +129,7 @@ app.whenReady().then(() => {
   registerMini(() => mainWindow)
   registerDiscord(() => mainWindow)
   registerSync(() => mainWindow)
+  registerVoice(() => mainWindow)
   registerTray({ window: () => mainWindow, toggleMini, miniVisible: isMiniVisible })
   onMiniVisibleChange(refreshTray)
   registerUpdater(() => mainWindow)
