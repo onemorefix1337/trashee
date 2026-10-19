@@ -427,6 +427,8 @@ interface QueueSnapshot {
 }
 
 let previousQueue: QueueSnapshot | null = null
+/** The last Моя волна that was replaced by something else. Unlike [previousQueue] it survives later replacements. */
+let lastWave: QueueSnapshot | null = null
 
 /** Keeps the queue that is about to be replaced, and offers to bring it back when it was worth keeping. */
 function rememberQueue(): void {
@@ -437,6 +439,7 @@ function rememberQueue(): void {
     wave: state.wave,
     position: audio.currentTime
   }
+  if (state.wave) lastWave = previousQueue
   const worthKeeping = state.wave !== null || state.queue.length - state.index > 1
   if (worthKeeping) {
     showToast(state.wave ? 'Волна заменена' : 'Очередь заменена', {
@@ -451,7 +454,12 @@ function restoreQueue(): void {
   const snapshot = previousQueue
   if (!snapshot) return
   previousQueue = null
+  applySnapshot(snapshot)
+}
+
+function applySnapshot(snapshot: QueueSnapshot): void {
   consecutiveErrors = 0
+  if (snapshot.wave) lastWave = null
   set({ queue: snapshot.queue, index: snapshot.index, wave: snapshot.wave })
   loadCurrent()
   const resumeAt = snapshot.position
@@ -463,6 +471,19 @@ function restoreQueue(): void {
     },
     { once: true }
   )
+}
+
+/**
+ * Back to Моя волна from whatever else is playing: the wave that was replaced comes back where it was left, on
+ * the same track and second. With no such wave to bring back, a new one starts. The queue left behind can be
+ * brought back too, from the same "Вернуть" as always.
+ */
+export async function returnToWave(): Promise<void> {
+  if (state.wave) return
+  const snapshot = lastWave
+  if (!snapshot) return startWave()
+  rememberQueue()
+  applySnapshot(snapshot)
 }
 
 /** Starts a queue taken over from another device: at this track, this many seconds in, playing or paused. */
@@ -608,6 +629,8 @@ export function resetPlayer(): void {
   audio.pause()
   audio.removeAttribute('src')
   audio.load()
+  previousQueue = null
+  lastWave = null
   set({
     queue: [],
     index: -1,

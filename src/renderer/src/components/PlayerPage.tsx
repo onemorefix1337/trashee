@@ -10,6 +10,7 @@ import {
   jumpTo,
   next,
   previous,
+  returnToWave,
   seek,
   setVolume,
   startWave,
@@ -179,7 +180,17 @@ export default function PlayerPage(): JSX.Element {
               exit={{ opacity: 0, y: -12, filter: 'blur(6px)' }}
               transition={{ duration: 0.3, ease: [0.2, 0.8, 0.2, 1] }}
             >
-              {wave && <span className="badge">Моя волна</span>}
+              {wave ? (
+                <span className="badge">Моя волна</span>
+              ) : (
+                <button
+                  className="badge wave-return"
+                  onClick={() => void returnToWave()}
+                  disabled={loading}
+                >
+                  <WaveIcon size={13} /> Вернуться на Мою волну
+                </button>
+              )}
               <h2 className="track-title">
                 {track.title}
                 {track.version && <span className="version"> {track.version}</span>}
