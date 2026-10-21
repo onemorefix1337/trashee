@@ -1,6 +1,6 @@
 {
   "name": "trashee",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Неофициальный кроссплатформенный клиент Яндекс Музыки",
   "main": "./out/main/index.js",
   "author": "trashee",

@@ -7,7 +7,7 @@ plugins {
 }
 
 // ./gradlew assembleRelease -PversionName=0.2.0 (the release workflow passes the version from the tag).
-val appVersion = (project.findProperty("versionName") as String?) ?: "1.0.0"
+val appVersion = (project.findProperty("versionName") as String?) ?: "1.1.0"
 // 1.2.3 becomes 10203, so a bigger version is always a bigger code. Same rule as versionCodeOf() in the app.
 val appVersionCode = appVersion.substringBefore('-').split('.').let { (major, minor, patch) ->
     major.toInt() * 10_000 + minor.toInt() * 100 + patch.toInt()
