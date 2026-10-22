@@ -1,4 +1,4 @@
-import { app, ipcMain, shell, type BrowserWindow } from 'electron'
+import { app, ipcMain, net, shell, type BrowserWindow } from 'electron'
 import { createHash } from 'node:crypto'
 import {
   accessSync,
@@ -16,8 +16,6 @@ import {
 } from 'node:fs'
 import { execFile, spawn } from 'node:child_process'
 import { basename, dirname, join, resolve } from 'node:path'
-import { Readable } from 'node:stream'
-import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import { pipeline } from 'node:stream/promises'
 import {
   INITIAL_UPDATE_STATE,
@@ -245,28 +243,38 @@ async function fetchTo(
   signal: AbortSignal,
   size: number
 ): Promise<void> {
-  const response = await fetch(url, { headers: { 'User-Agent': userAgent() }, signal })
+  // Chromium's network stack, as for the voice models: Node's client can crash the whole app with an assertion
+  // when a server closes the connection while the file is still being written.
+  const response = await net.fetch(url, { headers: { 'User-Agent': userAgent() }, signal })
   if (!response.ok || !response.body) throw new Error(`Сервер ответил ${response.status}`)
   const total = Number(response.headers.get('content-length')) || size
   let received = 0
   let lastReport = 0
   publish({ received: 0, total })
 
-  const source = Readable.fromWeb(response.body as unknown as WebReadableStream)
-  source.on('data', (chunk: Buffer) => {
-    received += chunk.length
-    const now = Date.now()
-    if (now - lastReport >= PROGRESS_INTERVAL_MS) {
-      lastReport = now
-      publish({ received })
+  const reader = response.body.getReader()
+  async function* chunks(): AsyncGenerator<Uint8Array> {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) return
+      received += value.length
+      const now = Date.now()
+      if (now - lastReport >= PROGRESS_INTERVAL_MS) {
+        lastReport = now
+        publish({ received })
+      }
+      yield value
     }
-  })
+  }
   const partial = `${file}.part`
   try {
-    await pipeline(source, createWriteStream(partial), { signal })
+    // pipeline() rather than a write loop: a failed disk write fails the download instead of becoming an
+    // unhandled 'error' event on the file stream, which would bring up the same crash dialog.
+    await pipeline(chunks(), createWriteStream(partial), { signal })
     publish({ received: total })
     renameSync(partial, file)
   } catch (error) {
+    void reader.cancel().catch(() => undefined)
     rmSync(partial, { force: true })
     throw error
   }

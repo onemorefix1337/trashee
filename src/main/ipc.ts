@@ -1,4 +1,4 @@
-import { app, clipboard, ipcMain, shell, type BrowserWindow } from 'electron'
+import { app, clipboard, ipcMain, net, shell, type BrowserWindow } from 'electron'
 import { copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { dirname, join, parse } from 'node:path'
 import { OAuthError, pollDeviceToken, requestDeviceCode } from './yandex/auth'
@@ -79,7 +79,10 @@ export function registerIpc(getPlayerWindow: () => BrowserWindow | null): void {
   const cacheRoot = join(app.getPath('userData'), 'cache')
   const files = new TrackCache(cacheRoot, {
     streamLimit: STREAM_CACHE_LIMIT,
-    resolve: (id, quality) => streamer.sourceFor(id, quality)
+    resolve: (id, quality) => streamer.sourceFor(id, quality),
+    // Chromium's network stack: Node's client can crash the whole app with an assertion when a server closes the
+    // connection while a track is still being written to disk.
+    fetch: (input, init) => net.fetch(String(input), init)
   })
   streamer.attachFiles(files)
 
