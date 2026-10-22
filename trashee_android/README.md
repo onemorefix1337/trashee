@@ -76,19 +76,19 @@ keyPassword=...
 ```
 
 ```bash
-./gradlew assembleRelease -PversionName=1.1.0
+./gradlew assembleRelease -PversionName=1.2.0
 ```
 
 Версия берётся из `-PversionName`, а код версии из неё считается сам (1.2.3 станет 10203).
 
 **На GitHub.** Нужны четыре секрета репозитория: `ANDROID_KEYSTORE_B64` (ключ в base64, например
 `base64 -i trashee-android-release.jks | pbcopy`), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`
-и `ANDROID_KEY_PASSWORD`. Потом тег вроде `v1.1.0` запускает сборку установщиков для компьютера и подписанного
+и `ANDROID_KEY_PASSWORD`. Потом тег вроде `v1.2.0` запускает сборку установщиков для компьютера и подписанного
 APK и создаёт один черновик релиза со всеми файлами и общим `SHA256SUMS.txt`. Заметки к релизу берутся из
-`release-notes/1.1.0.md`. Опубликовать черновик можно на странице Releases или так:
+`release-notes/1.2.0.md`. Опубликовать черновик можно на странице Releases или так:
 
 ```bash
-gh release edit v1.1.0 --draft=false
+gh release edit v1.2.0 --draft=false
 ```
 
 ## Обновления
