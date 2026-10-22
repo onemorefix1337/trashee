@@ -2,7 +2,7 @@ import { useEffect, useState, type JSX, type ReactNode } from 'react'
 import { motion } from 'motion/react'
 import { miniShortcut } from '../../../shared/mini'
 import { SPEEDS, closeToTrayOn, type MotionLevel } from '../../../shared/settings'
-import { VOICE_COMMANDS } from '../../../shared/voice'
+import { ENROLL_PHRASES, VOICE_COMMANDS, type SpeakerStrictness } from '../../../shared/voice'
 import type { Account, Quality } from '../../../shared/types'
 import { formatBytes as sizeText, removeOffline, useCacheInfo } from '../store/offline'
 import {
@@ -23,10 +23,14 @@ import RangeField from './RangeField'
 import { PairingCode } from './SyncSettings'
 import { useSyncSettings } from '../store/syncSettings'
 import {
+  cancelEnrollment,
   cancelVoiceDownload,
+  deleteVoiceProfile,
   removeVoiceModel,
   retryVoice,
+  setSpeakerCheck,
   setVoiceEnabled,
+  startEnrollment,
   useVoice
 } from '../store/voice'
 import Segmented from './Segmented'
@@ -227,29 +231,75 @@ function AboutSection({ index }: { index: number }): JSX.Element {
   )
 }
 
-/** Spoken commands: the switch, what the microphone is doing, and what can be said. */
+/** The microphone's level on a log scale, with a mark where sound starts to count as speech. */
+function LevelMeter({ level, threshold }: { level: number; threshold: number }): JSX.Element {
+  const percent = (value: number): number =>
+    Math.max(0, Math.min(100, ((Math.log10(Math.max(value, 1e-4)) + 4) / 4) * 100))
+  return (
+    <div className="voice-meter" aria-hidden="true">
+      <div
+        className={`voice-meter-fill${level >= threshold ? ' over' : ''}`}
+        style={{ width: `${percent(level)}%` }}
+      />
+      <div className="voice-meter-mark" style={{ left: `${percent(threshold)}%` }} />
+    </div>
+  )
+}
+
+const STRICTNESS_OPTIONS: { value: SpeakerStrictness; label: string }[] = [
+  { value: 'soft', label: 'Мягко' },
+  { value: 'normal', label: 'Обычно' },
+  { value: 'strict', label: 'Строго' }
+]
+
+const sensitivityText = (value: number): string =>
+  `${value < 34 ? 'Низкая' : value < 67 ? 'Средняя' : 'Высокая'} · ${value}`
+
+/** Spoken commands: the switch, what the microphone is doing, how picky it is, and what can be said. */
 function VoiceSection(): JSX.Element {
   const enabled = useSettings((s) => s.voice)
+  const sensitivity = useSettings((s) => s.voiceSensitivity)
+  const requireWake = useSettings((s) => s.voiceRequireWake)
+  const noiseSuppression = useSettings((s) => s.voiceNoiseSuppression)
+  const speakerCheck = useSettings((s) => s.voiceSpeakerCheck)
+  const strictness = useSettings((s) => s.voiceSpeakerStrictness)
   const phase = useVoice((s) => s.phase)
   const heard = useVoice((s) => s.heard)
+  const verdict = useVoice((s) => s.verdict)
   const error = useVoice((s) => s.error)
-  const model = useVoice((s) => s.model)
+  const models = useVoice((s) => s.models)
+  const level = useVoice((s) => s.level)
+  const threshold = useVoice((s) => s.threshold)
+  const profile = useVoice((s) => s.profile)
+  const enrollment = useVoice((s) => s.enrollment)
 
   const status = (): { text: string; action?: { label: string; run: () => void } } | null => {
     if (!enabled) return null
-    if (model.status === 'downloading') {
+    if (models.speech.status === 'downloading') {
       return {
-        text: `Скачиваю модель распознавания: ${formatBytes(model.received)} из ${formatBytes(model.total)}`,
-        action: { label: 'Отменить', run: cancelVoiceDownload }
+        text: `Скачиваю модель распознавания: ${formatBytes(models.speech.received)} из ${formatBytes(models.speech.total)}`,
+        action: { label: 'Отменить', run: () => cancelVoiceDownload('speech') }
       }
     }
-    if (phase === 'error')
+    if (phase === 'error') {
       return { text: error ?? 'Не получилось', action: { label: 'Повторить', run: retryVoice } }
+    }
     if (phase === 'starting') return { text: 'Запускаю…' }
-    if (phase === 'listening') return { text: heard ? `Слушаю. Услышал: «${heard}»` : 'Слушаю' }
+    if (phase === 'listening') {
+      return { text: heard ? `Слушаю. Услышал «${heard}»: ${verdict}` : 'Слушаю' }
+    }
     return null
   }
   const current = status()
+
+  const speakerHint = (): string => {
+    if (models.speaker.status === 'downloading') {
+      return `Скачиваю модель голоса: ${formatBytes(models.speaker.received)} из ${formatBytes(models.speaker.total)}`
+    }
+    if (models.speaker.status === 'error')
+      return models.speaker.error ?? 'Модель голоса не скачалась'
+    return 'Команды чужим голосом не выполняются. Один раз нужно записать свой голос: пять фраз вслух. Скачается модель голоса, около 40 МБ. Это бета: может иногда не узнать тебя, особенно в шуме или в другом микрофоне.'
+  }
 
   return (
     <Section title="Голос" index={4}>
@@ -269,8 +319,88 @@ function VoiceSection(): JSX.Element {
         </Row>
       )}
       <Row
+        title="Чувствительность"
+        hint="Выше — слышит тише и дальше от микрофона, но чаще срабатывает зря. Полоска — громкость микрофона: звук за чертой идёт в распознавание."
+        stacked
+      >
+        <RangeField
+          label="Чувствительность микрофона"
+          value={sensitivity}
+          min={0}
+          max={100}
+          format={sensitivityText}
+          onChange={(value) => updateSettings({ voiceSensitivity: value })}
+        />
+        {enabled && phase === 'listening' && <LevelMeter level={level} threshold={threshold} />}
+      </Row>
+      <Row
+        title="Только со словом «trashee»"
+        hint="Одно «дальше» без него не сработает. Меньше случайных срабатываний, если рядом говорят или играет что-то с речью."
+      >
+        <Switch
+          label="Только со словом trashee"
+          checked={requireWake}
+          onChange={(checked) => updateSettings({ voiceRequireWake: checked })}
+        />
+      </Row>
+      <Row
+        title="Подавление шума"
+        hint="Шумоподавление системы для микрофона. Если голос слышно плохо или он искажается, попробуй выключить."
+      >
+        <Switch
+          label="Подавление шума"
+          checked={noiseSuppression}
+          onChange={(checked) => updateSettings({ voiceNoiseSuppression: checked })}
+        />
+      </Row>
+      <Row title="Только мой голос · бета" hint={speakerHint()}>
+        <Switch
+          label="Только мой голос"
+          checked={speakerCheck && profile !== null}
+          onChange={setSpeakerCheck}
+        />
+      </Row>
+      {enrollment && (
+        <Row
+          title={`Прочитай вслух (${enrollment.step + 1} из ${ENROLL_PHRASES.length})`}
+          hint={`«${enrollment.phrase}». Обычным голосом, как будешь давать команды. Следующая фраза появится, когда эту услышу.`}
+        >
+          <button className="chip" onClick={cancelEnrollment}>
+            Отменить
+          </button>
+        </Row>
+      )}
+      {profile && !enrollment && (
+        <>
+          <Row
+            title="Голос записан"
+            hint={`Образцов: ${profile.samples}. Если перестал узнавать, перезапиши в тихой комнате с тем микрофоном, что обычно.`}
+          >
+            <div className="row-buttons">
+              <button className="chip" onClick={() => void startEnrollment()}>
+                Перезаписать
+              </button>
+              <button className="chip" onClick={deleteVoiceProfile}>
+                Удалить
+              </button>
+            </div>
+          </Row>
+          <Row
+            title="Насколько строго"
+            hint="Строже — меньше шансов, что сработает чужой голос, но чаще не узнаёт тебя."
+          >
+            <Segmented
+              label="Строгость проверки голоса"
+              options={STRICTNESS_OPTIONS}
+              value={strictness}
+              onChange={(value) => updateSettings({ voiceSpeakerStrictness: value })}
+            />
+          </Row>
+        </>
+      )}
+      <Row
         title="Команды"
-        hint="Одна команда без лишних слов сработает сама. Со словом «trashee» можно говорить свободнее: «trashee, поставь на паузу»."
+        hint="Одна команда без лишних слов сработает сама. Со словом «trashee» можно говорить свободнее: «trashee, поставь на паузу». Команда внутри разговора, вопроса или с «не» не выполняется."
         stacked
       >
         <ul className="voice-commands">
@@ -282,12 +412,22 @@ function VoiceSection(): JSX.Element {
           ))}
         </ul>
       </Row>
-      {model.status === 'ready' && !enabled && (
+      {models.speech.status === 'ready' && !enabled && (
         <Row
           title="Модель распознавания"
-          hint={`Занимает ${formatBytes(model.total)}. Скачается снова, когда включишь голос.`}
+          hint={`Занимает ${formatBytes(models.speech.total)}. Скачается снова, когда включишь голос.`}
         >
-          <button className="chip" onClick={removeVoiceModel}>
+          <button className="chip" onClick={() => removeVoiceModel('speech')}>
+            Удалить
+          </button>
+        </Row>
+      )}
+      {models.speaker.status === 'ready' && !speakerCheck && !enrollment && (
+        <Row
+          title="Модель голоса"
+          hint={`Занимает ${formatBytes(models.speaker.total)}. Скачается снова, когда включишь «Только мой голос».`}
+        >
+          <button className="chip" onClick={() => removeVoiceModel('speaker')}>
             Удалить
           </button>
         </Row>

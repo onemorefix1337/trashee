@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { GATE_BLOCK, VoiceGate, rms } from './voice-gate.ts'
+import { GATE_BLOCK, VoiceGate, gateLevels, rms, trimToSpeech } from './voice-gate.ts'
 
 const silence = (level = 0.001): Float32Array => {
   const block = new Float32Array(GATE_BLOCK)
@@ -13,10 +13,10 @@ const speech = (): Float32Array => {
   return block
 }
 
-function run(blocks: Float32Array[]): { fed: number; ended: number } {
+function run(blocks: Float32Array[], sensitivity = 50): { fed: number; ended: number } {
   let fed = 0
   let ended = 0
-  const gate = new VoiceGate({ feed: () => (fed += 1), end: () => (ended += 1) })
+  const gate = new VoiceGate({ feed: () => (fed += 1), end: () => (ended += 1) }, sensitivity)
   for (const block of blocks) gate.push(block)
   return { fed, ended }
 }
@@ -77,4 +77,47 @@ test('a steady hum raises the bar instead of keeping the gate open', () => {
   ]
   assert.equal(run(Array.from({ length: 200 }, () => hum())).fed, 0)
   assert.ok(run(blocks).fed > 0)
+})
+
+test('a higher sensitivity opens on quieter speech', () => {
+  const quiet = (): Float32Array => {
+    const block = new Float32Array(GATE_BLOCK)
+    for (let i = 0; i < block.length; i++) block[i] = 0.012 * Math.sin(i / 7)
+    return block
+  }
+  const blocks = [
+    ...Array.from({ length: 12 }, () => silence(0.0005)),
+    ...Array.from({ length: 8 }, quiet),
+    ...Array.from({ length: 15 }, () => silence(0.0005))
+  ]
+  assert.equal(run(blocks, 0).ended, 0)
+  assert.equal(run(blocks, 100).ended, 1)
+})
+
+test('the bar falls as the sensitivity rises', () => {
+  const low = gateLevels(0)
+  const middle = gateLevels(50)
+  const high = gateLevels(100)
+  assert.ok(low.minLevel > middle.minLevel && middle.minLevel > high.minLevel)
+  assert.ok(low.louderThanRoom > high.louderThanRoom)
+  assert.ok(Math.abs(middle.minLevel - 0.011) < 0.001)
+})
+
+test('the quiet blocks around an utterance are trimmed, with a margin', () => {
+  const blocks = [
+    silence(),
+    silence(),
+    silence(),
+    speech(),
+    speech(),
+    silence(),
+    silence(),
+    silence(),
+    silence()
+  ]
+  const trimmed = trimToSpeech(blocks, 0.05, 1)
+  assert.equal(trimmed.length, 4)
+  assert.equal(trimmed[1], blocks[3])
+  // Nothing loud at all: everything is kept rather than nothing.
+  assert.equal(trimToSpeech([silence(), silence()], 0.05).length, 2)
 })

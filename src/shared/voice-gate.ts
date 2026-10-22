@@ -15,12 +15,24 @@ const PREROLL_BLOCKS = 6
 const END_BLOCKS = 10
 /** Even without a pause, an utterance is cut here (8 s): a command is never this long. */
 const MAX_BLOCKS = 160
-/** Never trigger on less than this, however quiet the room is. */
-const MIN_LEVEL = 0.012
-/** How much louder than the room a block has to be. */
-const LOUDER_THAN_ROOM = 3
 /** The first half second only listens to the room (it may be humming already), and opens nothing. */
 const WARM_UP_BLOCKS = 10
+
+export interface GateLevels {
+  /** Never open on less than this, however quiet the room is. */
+  minLevel: number
+  /** How much louder than the room a block has to be. */
+  louderThanRoom: number
+}
+
+/**
+ * The gate's bar for a sensitivity of 0 (only a voice close to the microphone) to 100 (a whisper across the room).
+ * 50 is about a normal voice at arm's length.
+ */
+export function gateLevels(sensitivity: number): GateLevels {
+  const s = Math.max(0, Math.min(100, sensitivity)) / 100
+  return { minLevel: 0.03 * Math.pow(0.004 / 0.03, s), louderThanRoom: 4 - 2 * s }
+}
 
 export interface GateEvents {
   /** A block that belongs to an utterance. */
@@ -44,25 +56,35 @@ export class VoiceGate {
   /** How loud the room is when nobody speaks. */
   private room = 0
   private seen = 0
+  private levels: GateLevels
+  /** The level of the last block, for a meter. */
+  lastLevel = 0
 
-  constructor(events: GateEvents) {
+  constructor(events: GateEvents, sensitivity = 50) {
     this.events = events
+    this.levels = gateLevels(sensitivity)
   }
 
   get open(): boolean {
     return this.speaking
   }
 
-  private level(): number {
-    return Math.max(MIN_LEVEL, this.room * LOUDER_THAN_ROOM)
+  setSensitivity(sensitivity: number): void {
+    this.levels = gateLevels(sensitivity)
+  }
+
+  /** How loud a block has to be to open the gate right now. */
+  get threshold(): number {
+    return Math.max(this.levels.minLevel, this.room * this.levels.louderThanRoom)
   }
 
   /** One block of GATE_BLOCK samples. */
   push(block: Float32Array): void {
     const loud = rms(block)
+    this.lastLevel = loud
     const warm = this.seen >= WARM_UP_BLOCKS
     this.seen += 1
-    const isLoud = warm && loud >= this.level()
+    const isLoud = warm && loud >= this.threshold
 
     if (!this.speaking) {
       if (!isLoud) {
@@ -101,4 +123,21 @@ export class VoiceGate {
     this.room = 0
     this.preroll.length = 0
   }
+}
+
+/**
+ * The blocks of an utterance without the quiet ones around it (the pause that ended it, the sound kept from before
+ * it), with a little margin: comparing voices works on the voice, and silence only dilutes it.
+ */
+export function trimToSpeech(blocks: Float32Array[], level: number, margin = 2): Float32Array[] {
+  let first = -1
+  let last = -1
+  blocks.forEach((block, i) => {
+    if (rms(block) >= level) {
+      if (first < 0) first = i
+      last = i
+    }
+  })
+  if (first < 0) return blocks
+  return blocks.slice(Math.max(0, first - margin), Math.min(blocks.length, last + 1 + margin))
 }

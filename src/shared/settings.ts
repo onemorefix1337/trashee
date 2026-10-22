@@ -1,4 +1,5 @@
 import type { Quality } from './types'
+import type { SpeakerStrictness } from './voice'
 
 export type MotionLevel = 'full' | 'reduced' | 'off'
 
@@ -15,6 +16,15 @@ export interface Settings {
   discord: boolean
   /** Listen to the microphone for spoken commands: "trashee, дальше". */
   voice: boolean
+  /** 0..100: how quiet a voice still counts, and how unsure a word may be. */
+  voiceSensitivity: number
+  /** Only "trashee, …" counts, a bare "дальше" does not. */
+  voiceRequireWake: boolean
+  /** The system's own noise suppression on the microphone. */
+  voiceNoiseSuppression: boolean
+  /** Act only on commands said in the voice that was recorded (beta). */
+  voiceSpeakerCheck: boolean
+  voiceSpeakerStrictness: SpeakerStrictness
   /** Let the phone find this computer on the home network: handing over playback and remote control. */
   sync: boolean
   /** Download the next track in the queue while the current one is still playing. */
@@ -48,6 +58,11 @@ export const DEFAULT_SETTINGS: Settings = {
   closeToTray: null,
   discord: false,
   voice: false,
+  voiceSensitivity: 50,
+  voiceRequireWake: false,
+  voiceNoiseSuppression: true,
+  voiceSpeakerCheck: false,
+  voiceSpeakerStrictness: 'normal',
   sync: false,
   prefetchNext: true,
   speed: 1,
@@ -62,6 +77,7 @@ export function closeToTrayOn(setting: boolean | null, platform: string): boolea
 
 const QUALITIES: Quality[] = ['nq', 'hq', 'lossless']
 const MOTIONS: MotionLevel[] = ['full', 'reduced', 'off']
+const STRICTNESS: SpeakerStrictness[] = ['soft', 'normal', 'strict']
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value))
@@ -94,6 +110,16 @@ export function sanitizeSettings(raw: unknown): Settings {
     closeToTray: typeof input.closeToTray === 'boolean' ? input.closeToTray : null,
     discord: bool('discord', DEFAULT_SETTINGS.discord),
     voice: bool('voice', DEFAULT_SETTINGS.voice),
+    voiceSensitivity:
+      typeof input.voiceSensitivity === 'number' && Number.isFinite(input.voiceSensitivity)
+        ? clamp(Math.round(input.voiceSensitivity), 0, 100)
+        : DEFAULT_SETTINGS.voiceSensitivity,
+    voiceRequireWake: bool('voiceRequireWake', DEFAULT_SETTINGS.voiceRequireWake),
+    voiceNoiseSuppression: bool('voiceNoiseSuppression', DEFAULT_SETTINGS.voiceNoiseSuppression),
+    voiceSpeakerCheck: bool('voiceSpeakerCheck', DEFAULT_SETTINGS.voiceSpeakerCheck),
+    voiceSpeakerStrictness: STRICTNESS.includes(input.voiceSpeakerStrictness as SpeakerStrictness)
+      ? (input.voiceSpeakerStrictness as SpeakerStrictness)
+      : DEFAULT_SETTINGS.voiceSpeakerStrictness,
     sync: bool('sync', DEFAULT_SETTINGS.sync),
     prefetchNext: bool('prefetchNext', DEFAULT_SETTINGS.prefetchNext),
     speed: clamp(speed, 0.5, 3),

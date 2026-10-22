@@ -31,6 +31,11 @@ test('valid settings survive a round trip', () => {
     closeToTray: false,
     discord: true,
     voice: true,
+    voiceSensitivity: 70,
+    voiceRequireWake: true,
+    voiceNoiseSuppression: false,
+    voiceSpeakerCheck: true,
+    voiceSpeakerStrictness: 'strict',
     sync: true,
     prefetchNext: false,
     speed: 1.25,
@@ -74,4 +79,14 @@ test('closing to the tray follows the choice, and without one it is on except on
   assert.equal(closeToTrayOn(false, 'darwin'), false)
   assert.equal(closeToTrayOn(true, 'linux'), true)
   assert.equal(sanitizeSettings({ closeToTray: 'yes' }).closeToTray, null)
+})
+
+test('voice sensitivity is kept between 0 and 100 and strictness must be a known one', () => {
+  assert.equal(sanitizeSettings({ voiceSensitivity: 250 }).voiceSensitivity, 100)
+  assert.equal(sanitizeSettings({ voiceSensitivity: -3 }).voiceSensitivity, 0)
+  assert.equal(sanitizeSettings({ voiceSensitivity: 'loud' }).voiceSensitivity, 50)
+  assert.equal(
+    sanitizeSettings({ voiceSpeakerStrictness: 'paranoid' }).voiceSpeakerStrictness,
+    'normal'
+  )
 })
