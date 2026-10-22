@@ -2,12 +2,14 @@ import { useSyncExternalStore } from 'react'
 import {
   ENROLL_PHRASES,
   REJECTION_TEXT,
-  SPEAKER_THRESHOLDS,
   VOICE_COMMANDS,
+  adaptProfile,
   initialModelState,
   interpret,
   makeProfile,
   minConfidenceFor,
+  speakerScore,
+  speakerThreshold,
   type HeardWord,
   type SpeakerProfile,
   type VoiceAction,
@@ -56,11 +58,14 @@ export interface VoiceUi {
   threshold: number
   profile: SpeakerProfile | null
   enrollment: Enrollment | null
+  /** The last few things heard and what came of them, newest first. */
+  history: { text: string; verdict: string }[]
 }
 
 /** The same command twice in this time is one command: the recognizer can write a phrase down twice. */
 const SAME_COMMAND_MS = 1500
 const VOLUME_STEP = 0.15
+const HISTORY = 6
 
 let ui: VoiceUi = {
   phase: 'off',
@@ -71,7 +76,8 @@ let ui: VoiceUi = {
   level: 0,
   threshold: 0,
   profile: null,
-  enrollment: null
+  enrollment: null,
+  history: []
 }
 const listeners = new Set<() => void>()
 
@@ -101,7 +107,7 @@ function config(): VoiceConfig {
     mode: ui.enrollment ? 'enroll' : 'listen',
     sensitivity: settings.voiceSensitivity,
     noiseSuppression: settings.voiceNoiseSuppression,
-    speaker: checkingVoice() ? (ui.profile?.embedding ?? null) : null
+    checkSpeaker: checkingVoice()
   }
 }
 
@@ -180,35 +186,60 @@ function run(action: VoiceAction): void {
 
 let lastAction: { type: string; at: number } | null = null
 
-function heard(text: string, words: HeardWord[], speaker: number | null): void {
-  const result = decide(text, words, speaker)
+function heard(
+  text: string,
+  words: HeardWord[],
+  embedding: number[] | null,
+  seconds: number
+): void {
+  const result = decide(text, words, embedding, seconds)
   console.info('[voice] heard:', text, '->', result)
+  set({
+    heard: text,
+    verdict: result,
+    history: [{ text, verdict: result }, ...ui.history].slice(0, HISTORY)
+  })
+}
+
+/** A recognized command makes the profile a little more like the user's voice lately; saved now and then. */
+let saveTimer: ReturnType<typeof setTimeout> | null = null
+function remember(embedding: number[], score: number): void {
+  const profile = ui.profile
+  if (!profile) return
+  const adapted = adaptProfile(profile, embedding, score)
+  if (!adapted) return
+  set({ profile: adapted })
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = setTimeout(() => void window.api.voiceSaveProfile(adapted), 5000)
 }
 
 /** Acts on what was heard, or says why not; returns what the settings show. */
-function decide(text: string, words: HeardWord[], speaker: number | null): string {
+function decide(
+  text: string,
+  words: HeardWord[],
+  embedding: number[] | null,
+  seconds: number
+): string {
   const settings = getSettings()
   const verdict = interpret(text, words, {
     requireWake: settings.voiceRequireWake,
     minConfidence: minConfidenceFor(settings.voiceSensitivity)
   })
-  if (!verdict.action) {
-    set({ heard: text, verdict: REJECTION_TEXT[verdict.reason] })
-    return REJECTION_TEXT[verdict.reason]
+  if (!verdict.action) return REJECTION_TEXT[verdict.reason]
+
+  let voice = ''
+  const profile = ui.profile
+  if (checkingVoice() && profile) {
+    if (!embedding) return 'голос не с чем сравнить: модель голоса ещё не загрузилась'
+    const score = speakerScore(profile, embedding)
+    const needed = speakerThreshold(profile, settings.voiceSpeakerStrictness, seconds)
+    const percent = (value: number): number => Math.round(value * 100)
+    if (score < needed)
+      return `не твой голос (сходство ${percent(score)}%, нужно ${percent(needed)}%)`
+    voice = ` (голос ${percent(score)}%)`
+    remember(embedding, score)
   }
-  if (checkingVoice()) {
-    const needed = SPEAKER_THRESHOLDS[settings.voiceSpeakerStrictness]
-    if (speaker === null) {
-      const why = 'голос не с чем сравнить: модель голоса не загрузилась или фраза слишком короткая'
-      set({ heard: text, verdict: why })
-      return why
-    }
-    if (speaker < needed) {
-      const why = `не твой голос (сходство ${Math.round(speaker * 100)}%)`
-      set({ heard: text, verdict: why })
-      return why
-    }
-  }
+
   const now = Date.now()
   if (
     lastAction &&
@@ -218,11 +249,9 @@ function decide(text: string, words: HeardWord[], speaker: number | null): strin
     return 'повтор, пропущен'
   }
   lastAction = { type: verdict.action.type, at: now }
-  set({ heard: text, verdict: labelOf(verdict.action) })
   if (verdict.action.type !== 'nowPlaying') showToast(`Голос: ${labelOf(verdict.action)}`)
   run(verdict.action)
-  const score = speaker === null ? '' : ` (голос ${Math.round(speaker * 100)}%)`
-  return `${verdict.action.type}${score}`
+  return `${labelOf(verdict.action)}${voice}`
 }
 
 /* ---------- learning the user's voice ---------- */
@@ -346,7 +375,7 @@ function onEvent(event: VoiceEvent): void {
   if (ui.phase === 'off') return
   switch (event.kind) {
     case 'heard':
-      heard(event.text, event.words, event.speaker)
+      heard(event.text, event.words, event.embedding, event.seconds)
       break
     case 'sample':
       enrollSample(event.embedding)

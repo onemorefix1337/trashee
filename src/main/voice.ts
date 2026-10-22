@@ -1,5 +1,5 @@
 import { is } from '@electron-toolkit/utils'
-import { BrowserWindow, app, ipcMain, systemPreferences } from 'electron'
+import { BrowserWindow, app, ipcMain, net, systemPreferences } from 'electron'
 import { createHash } from 'node:crypto'
 import {
   createWriteStream,
@@ -10,10 +10,8 @@ import {
   rmSync,
   writeFileSync
 } from 'node:fs'
+import { once } from 'node:events'
 import { join } from 'node:path'
-import { Readable } from 'node:stream'
-import { pipeline } from 'node:stream/promises'
-import type { ReadableStream as WebReadableStream } from 'node:stream/web'
 import {
   VOICE_MODELS,
   initialModelState,
@@ -82,30 +80,40 @@ export function registerVoice(playerWindow: () => BrowserWindow | null): void {
     const spec = VOICE_MODELS[kind][index]
     const target = fileOf(spec.file)
     if (existsSync(target)) return done + spec.size
-    const response = await fetch(urlOf(spec.url, spec.file), { signal })
+    // Chromium's network stack, not Node's: it follows the system's proxy, and Node's client can crash the whole
+    // app with an assertion when a server closes the connection while the file is still being written.
+    const response = await net.fetch(urlOf(spec.url, spec.file), { signal })
     if (!response.ok || !response.body) throw new Error(`Сервер ответил ${response.status}`)
 
     const hash = createHash('sha256')
     let received = done
     let lastReport = 0
-    const source = Readable.fromWeb(response.body as unknown as WebReadableStream)
-    source.on('data', (chunk: Buffer) => {
-      hash.update(chunk)
-      received += chunk.length
-      const now = Date.now()
-      if (now - lastReport >= PROGRESS_INTERVAL_MS) {
-        lastReport = now
-        publish(kind, { received })
-      }
-    })
     const partial = `${target}.part`
+    const out = createWriteStream(partial)
+    const reader = response.body.getReader()
     try {
-      await pipeline(source, createWriteStream(partial), { signal })
+      for (;;) {
+        const { done: finished, value } = await reader.read()
+        if (finished) break
+        hash.update(value)
+        received += value.length
+        const now = Date.now()
+        if (now - lastReport >= PROGRESS_INTERVAL_MS) {
+          lastReport = now
+          publish(kind, { received })
+        }
+        if (!out.write(value)) await once(out, 'drain')
+      }
+      await new Promise<void>((resolve, reject) =>
+        out.end((error?: Error | null) => (error ? reject(error) : resolve()))
+      )
       if (hash.digest('hex') !== spec.sha256) {
         throw new Error('Скачанный файл не совпал с контрольной суммой')
       }
       renameSync(partial, target)
     } catch (error) {
+      out.destroy()
+      void reader.cancel().catch(() => undefined)
       rmSync(partial, { force: true })
       throw error
     }

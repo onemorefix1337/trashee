@@ -1,10 +1,9 @@
-import { cosine } from '../../../shared/fbank'
 import { interpret, type VoiceConfig } from '../../../shared/voice'
 import { startRecognizer, type Recognizer, type Utterance } from '../lib/voice-recognizer'
 import { loadSpeakerEngine, type SpeakerEngine } from '../lib/voice-speaker'
 
-/** A sample of the user's voice for learning it has to be at least this long. */
-const MIN_SAMPLE_SECONDS = 1
+/** A sample of the user's voice for learning it has to be at least this long ("Пауза" said quickly is about this). */
+const MIN_SAMPLE_SECONDS = 0.5
 
 let config: VoiceConfig | null = null
 let recognizer: Recognizer | null = null
@@ -51,13 +50,16 @@ async function onUtterance({ text, words, audio }: Utterance): Promise<void> {
     return
   }
 
-  // The voice is only compared when it said a command: no work for ordinary talk.
-  let score: number | null = null
-  if (current.speaker && interpret(text, words, { requireWake: false, minConfidence: 0 }).action) {
-    const embedding = await (await speakerEngine())?.embed(audio)
-    score = embedding ? cosine(current.speaker, embedding) : null
+  // The voice is only fingerprinted when it said a command: no work for ordinary talk. The app compares it.
+  let embedding: number[] | null = null
+  if (
+    current.checkSpeaker &&
+    interpret(text, words, { requireWake: false, minConfidence: 0 }).action
+  ) {
+    const vector = await (await speakerEngine())?.embed(audio)
+    embedding = vector ? Array.from(vector) : null
   }
-  window.voice.report({ kind: 'heard', text, words, speaker: score })
+  window.voice.report({ kind: 'heard', text, words, embedding, seconds })
 }
 
 async function apply(next: VoiceConfig): Promise<void> {
@@ -70,7 +72,7 @@ async function apply(next: VoiceConfig): Promise<void> {
       window.voice.report({ kind: 'error', message: friendly(error) })
     })
   }
-  if ((next.speaker || next.mode === 'enroll') && !speaker) void speakerEngine()
+  if ((next.checkSpeaker || next.mode === 'enroll') && !speaker) void speakerEngine()
 }
 
 /** Starts listening as soon as the page loads, and tells the app how it went. */
@@ -81,7 +83,7 @@ async function listen(): Promise<void> {
     window.voice.onConfig((next) => void apply(next))
     const model = await window.voice.modelBytes()
     if (!model) throw new Error('Модель не найдена')
-    if (config.speaker || config.mode === 'enroll') void speakerEngine()
+    if (config.checkSpeaker || config.mode === 'enroll') void speakerEngine()
     recognizer = await startRecognizer({
       model,
       sensitivity: config.sensitivity,

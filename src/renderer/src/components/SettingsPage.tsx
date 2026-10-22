@@ -264,8 +264,7 @@ function VoiceSection(): JSX.Element {
   const speakerCheck = useSettings((s) => s.voiceSpeakerCheck)
   const strictness = useSettings((s) => s.voiceSpeakerStrictness)
   const phase = useVoice((s) => s.phase)
-  const heard = useVoice((s) => s.heard)
-  const verdict = useVoice((s) => s.verdict)
+  const history = useVoice((s) => s.history)
   const error = useVoice((s) => s.error)
   const models = useVoice((s) => s.models)
   const level = useVoice((s) => s.level)
@@ -285,9 +284,7 @@ function VoiceSection(): JSX.Element {
       return { text: error ?? 'Не получилось', action: { label: 'Повторить', run: retryVoice } }
     }
     if (phase === 'starting') return { text: 'Запускаю…' }
-    if (phase === 'listening') {
-      return { text: heard ? `Слушаю. Услышал «${heard}»: ${verdict}` : 'Слушаю' }
-    }
+    if (phase === 'listening') return { text: 'Слушаю' }
     return null
   }
   const current = status()
@@ -316,6 +313,22 @@ function VoiceSection(): JSX.Element {
               {current.action.label}
             </button>
           )}
+        </Row>
+      )}
+      {enabled && history.length > 0 && (
+        <Row
+          title="Последнее услышанное"
+          hint="Что расслышал и что из этого вышло. Если команды не срабатывают, здесь видно почему."
+          stacked
+        >
+          <ul className="voice-history">
+            {history.map((entry, i) => (
+              <li key={i}>
+                <span>«{entry.text}»</span>
+                <span className="muted">{entry.verdict}</span>
+              </li>
+            ))}
+          </ul>
         </Row>
       )}
       <Row
@@ -374,7 +387,7 @@ function VoiceSection(): JSX.Element {
         <>
           <Row
             title="Голос записан"
-            hint={`Образцов: ${profile.samples}. Если перестал узнавать, перезапиши в тихой комнате с тем микрофоном, что обычно.`}
+            hint={`Образцов: ${profile.samples}, свой порог сходства ${Math.round(profile.threshold * 100)}%. Подстраивается под твой голос с каждой узнанной командой. Если перестал узнавать, перезапиши с тем микрофоном, что обычно.`}
           >
             <div className="row-buttons">
               <button className="chip" onClick={() => void startEnrollment()}>

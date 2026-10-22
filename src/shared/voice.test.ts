@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import {
   VOICE_COMMANDS,
+  adaptProfile,
+  speakerScore,
+  speakerThreshold,
   interpret,
   isWakeWord,
   makeProfile,
@@ -164,10 +167,10 @@ test('ordinary short talk does not wake it', () => {
 })
 
 test('sensitivity sets how sure the recognizer must be', () => {
-  assert.equal(minConfidenceFor(0), 0.9)
-  assert.equal(minConfidenceFor(100), 0.5)
-  assert.ok(Math.abs(minConfidenceFor(50) - 0.7) < 1e-9)
-  assert.equal(minConfidenceFor(500), 0.5)
+  assert.equal(minConfidenceFor(0), 0.75)
+  assert.ok(Math.abs(minConfidenceFor(100) - 0.35) < 1e-9)
+  assert.ok(Math.abs(minConfidenceFor(50) - 0.55) < 1e-9)
+  assert.ok(Math.abs(minConfidenceFor(500) - 0.35) < 1e-9)
 })
 
 test('a voice profile is the average direction of the samples', () => {
@@ -200,4 +203,91 @@ test('a real word heard for the wake word only counts before the command alone',
   assert.equal(type('страшно дальше'), 'next')
   assert.equal(type('страшно дальше смотреть'), null)
   assert.equal(type('страшно'), null)
+})
+
+test('"и", "теперь", "вот" before a bare command are fine, as they were', () => {
+  assert.equal(type('и дальше'), 'next')
+  assert.equal(type('теперь пауза'), 'pause')
+  assert.equal(type('вот следующий трек'), 'next')
+  assert.equal(type('траши хочу следующий трек'), 'next')
+})
+
+test('a short word the recognizer was unsure of next to a command is taken for noise', () => {
+  assert.equal(reason('ой дальше', heard(['ой', 0.3], ['дальше', 1])), null)
+  assert.equal(reason('ой дальше', heard(['ой', 0.9], ['дальше', 1])), 'extra-words')
+  // A long word stays a word, unsure or not (in front, an unsure word is taken for the wake word instead).
+  assert.equal(reason('дальше смотреть', heard(['дальше', 1], ['смотреть', 0.3])), 'extra-words')
+})
+
+/** Unit vectors around a direction, for a made-up voice. */
+function voice(seed: number, spread: number, around: number[]): number[] {
+  let state = seed
+  const random = (): number =>
+    ((state = (state * 1664525 + 1013904223) % 4294967296) / 4294967296) * 2 - 1
+  return around.map((value) => value + spread * random())
+}
+
+test('a profile learns its own threshold from how its samples score against each other', () => {
+  const base = Array.from({ length: 64 }, (_, i) => Math.sin(i))
+  const tight = makeProfile([1, 2, 3, 4, 5].map((seed) => voice(seed, 0.2, base)))
+  const loose = makeProfile([1, 2, 3, 4, 5].map((seed) => voice(seed, 1.5, base)))
+  assert.ok(tight.threshold > loose.threshold)
+  assert.ok(tight.threshold <= 0.5 && loose.threshold >= 0.22)
+  assert.equal(tight.vectors.length, 5)
+  assert.deepEqual(tight.recent, [])
+  // Too few samples to measure: the general threshold.
+  assert.equal(makeProfile([voice(1, 0.2, base)]).threshold, 0.42)
+})
+
+test('the same voice scores high and another low', () => {
+  const mine = Array.from({ length: 64 }, (_, i) => Math.sin(i))
+  const other = Array.from({ length: 64 }, (_, i) => Math.cos(i * 3))
+  const profile = makeProfile([1, 2, 3, 4, 5].map((seed) => voice(seed, 0.4, mine)))
+  const own = speakerScore(profile, voice(9, 0.4, mine))
+  const theirs = speakerScore(profile, voice(9, 0.4, other))
+  assert.ok(own > speakerThreshold(profile, 'normal', 2))
+  assert.ok(theirs < speakerThreshold(profile, 'soft', 0.5))
+})
+
+test('strictness and short commands move the threshold', () => {
+  const profile = makeProfile(
+    [1, 2, 3, 4, 5].map((seed) =>
+      voice(
+        seed,
+        0.4,
+        Array.from({ length: 64 }, (_, i) => Math.sin(i))
+      )
+    )
+  )
+  const normal = speakerThreshold(profile, 'normal', 2)
+  assert.ok(speakerThreshold(profile, 'strict', 2) > normal)
+  assert.ok(speakerThreshold(profile, 'soft', 2) < normal)
+  assert.ok(speakerThreshold(profile, 'normal', 0.6) < normal)
+})
+
+test('only clearly recognized commands are remembered, and only the last few', () => {
+  const base = Array.from({ length: 64 }, (_, i) => Math.sin(i))
+  let profile = makeProfile([1, 2, 3, 4, 5].map((seed) => voice(seed, 0.4, base)))
+  assert.equal(adaptProfile(profile, voice(7, 0.4, base), profile.threshold), null)
+  for (let i = 0; i < 10; i++)
+    profile = adaptProfile(profile, voice(20 + i, 0.4, base), 0.99) ?? profile
+  assert.equal(profile.recent.length, 6)
+})
+
+test('a profile saved by the previous version still works', () => {
+  const old = sanitizeProfile({
+    embedding: new Array(256).fill(0.1),
+    consistency: 0.8,
+    samples: 5,
+    created: 'x'
+  })
+  assert.equal(old?.threshold, 0.42)
+  assert.deepEqual(old?.vectors, [])
+  const broken = sanitizeProfile({
+    embedding: new Array(16).fill(0.1),
+    vectors: [[1, 2]],
+    recent: 'x'
+  })
+  assert.deepEqual(broken?.vectors, [])
+  assert.deepEqual(broken?.recent, [])
 })

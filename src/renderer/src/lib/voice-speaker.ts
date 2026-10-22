@@ -1,8 +1,8 @@
 import * as ort from 'onnxruntime-web/wasm'
 import { FBANK_BINS, fbank } from '../../../shared/fbank'
 
-/** Shorter than this, a voice says too little about who it is. */
-const MIN_FRAMES = 50
+/** Shorter than this (0.3 s), a voice says too little about who it is. */
+const MIN_FRAMES = 30
 
 export interface SpeakerEngine {
   /** A fingerprint of the voice in [audio] (16 kHz), or null when the sound is too short to tell. */

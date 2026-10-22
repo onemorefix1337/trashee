@@ -272,17 +272,20 @@ const SOFTENERS = new Set([
   'давай',
   'ну',
   'а',
+  'и',
+  'вот',
   'эй',
   'ка',
   'плиз',
   'слушай',
-  'короче'
+  'короче',
+  'теперь',
+  'сейчас'
 ])
 /** Words that fit a spoken command after the wake word, but would be talk without it. */
 const HELPERS = new Set([
-  'теперь',
   'тогда',
-  'сейчас',
+  'хочу',
   'мне',
   'нам',
   'можешь',
@@ -290,7 +293,6 @@ const HELPERS = new Set([
   'сделай',
   'включи',
   'поставь',
-  'и',
   'еще',
   'быстро',
   'срочно',
@@ -341,7 +343,6 @@ const TALK = new Set([
   'была',
   'было',
   'будет',
-  'хочу',
   'думаю',
   'кажется'
 ])
@@ -352,7 +353,9 @@ const PAST_TENSE = /^[а-я]{3,}(ил|ыл|ал|ял|ел|ул|ол)(а|и|о|с
 /** More words than this after the wake word, besides the command, and it is a sentence, not a command. */
 const MAX_EXTRA_AFTER_WAKE = 2
 /** The recognizer is never sure of words it does not know, like the wake word itself. */
-const UNKNOWN_WORD_CONFIDENCE = 0.6
+const UNKNOWN_WORD_CONFIDENCE = 0.7
+/** A short word the recognizer is this unsure of, next to a command, is most likely a noise it put into words. */
+const NOISE_WORD_CONFIDENCE = 0.5
 
 export interface HeardWord {
   word: string
@@ -512,8 +515,17 @@ function judge(
   if (!hit) return { action: null, reason: 'not-command' }
 
   const before = words.slice(0, hit.at)
-  const after = words.slice(hit.at + hit.length)
-  const extra = [...before, ...after].filter((word) => !SOFTENERS.has(word))
+  const outside = words
+    .map((word, i) => ({
+      word,
+      conf: confs[i] ?? 1,
+      inside: i >= hit.at && i < hit.at + hit.length
+    }))
+    .filter(({ inside }) => !inside)
+  const extra = outside
+    .filter(({ word, conf }) => !(word.length <= 3 && conf < NOISE_WORD_CONFIDENCE))
+    .map(({ word }) => word)
+    .filter((word) => !SOFTENERS.has(word))
 
   // A command that is denied: "не ставь на паузу", "не надо дальше". ("не нравится" is a command itself.)
   if (before.some((word) => NEGATIONS.has(word))) return { action: null, reason: 'negated' }
@@ -581,7 +593,7 @@ export function parseVoice(text: string): VoiceAction | null {
 
 /** How sure the recognizer must be, for a sensitivity of 0 (strict) to 100 (catch everything). */
 export function minConfidenceFor(sensitivity: number): number {
-  return 0.9 - 0.4 * (Math.max(0, Math.min(100, sensitivity)) / 100)
+  return 0.75 - 0.4 * (Math.max(0, Math.min(100, sensitivity)) / 100)
 }
 
 /* ---------- models ---------- */
@@ -659,43 +671,71 @@ export interface VoiceConfig {
   /** 0..100: how quiet a sound still counts as speech. */
   sensitivity: number
   noiseSuppression: boolean
-  /** The user's voice, to compare commands with; null when anyone may speak. */
-  speaker: number[] | null
+  /** Take a fingerprint of the voice of every command, to compare it with the user's. */
+  checkSpeaker: boolean
 }
 
 /** What the listening window tells the app. */
 export type VoiceEvent =
   | { kind: 'listening' }
   | { kind: 'level'; level: number; threshold: number }
-  | { kind: 'heard'; text: string; words: HeardWord[]; speaker: number | null }
+  | {
+      kind: 'heard'
+      text: string
+      words: HeardWord[]
+      /** The voice's fingerprint, when the check is on and the words were a command; null otherwise. */
+      embedding: number[] | null
+      seconds: number
+    }
   | { kind: 'sample'; embedding: number[]; seconds: number }
   | { kind: 'error'; message: string }
 
 /* ---------- the user's voice (beta) ---------- */
 
-/** Utterances recorded to learn the user's voice. */
+/**
+ * Utterances recorded to learn the user's voice: short ones like real commands, and longer ones that say more
+ * about the voice.
+ */
 export const ENROLL_PHRASES = [
-  'Траши, включи следующий трек',
-  'Поставь музыку на паузу, пожалуйста',
-  'Сделай погромче и включи мою волну',
-  'Верни предыдущую песню',
+  'Траши, дальше',
+  'Поставь на паузу',
+  'Сделай погромче',
+  'Траши, включи мою волну',
+  'Верни предыдущую песню, пожалуйста',
   'Мне нравится этот трек, добавь в любимые'
 ]
 
 export type SpeakerStrictness = 'soft' | 'normal' | 'strict'
 
-/**
- * How alike a command's voice and the saved one must be (cosine of the two embeddings). Measured through the app:
- * the same voice scores about 0.65-0.8, another voice 0.1-0.4, and the same voice pitched up a third 0.3-0.42.
- */
-export const SPEAKER_THRESHOLDS: Record<SpeakerStrictness, number> = {
-  soft: 0.35,
-  normal: 0.48,
-  strict: 0.6
+/** Strictness moves the user's own threshold up or down. */
+export const STRICTNESS_OFFSET: Record<SpeakerStrictness, number> = {
+  soft: -0.08,
+  normal: 0,
+  strict: 0.08
 }
 
+/** For a profile without its own threshold (one sample, or saved by an older version). */
+const DEFAULT_THRESHOLD = 0.42
+/** The user's threshold sits this far below how their own samples scored against each other. */
+const CALIBRATION_MARGIN = 0.12
+const LOWEST_THRESHOLD = 0.22
+const HIGHEST_THRESHOLD = 0.5
+/** A command shorter than this says less about the voice, and scores lower even for the user. */
+const SHORT_SECONDS = 1
+const SHORT_ALLOWANCE = 0.05
+/** Commands recognized with a clear margin keep the profile up to date with the microphone and the room. */
+const RECENT_KEPT = 6
+const ADAPT_MARGIN = 0.12
+
 export interface SpeakerProfile {
+  /** The average direction of the samples. */
   embedding: number[]
+  /** Each recorded sample, as a unit vector. */
+  vectors: number[][]
+  /** Commands that were clearly the user's, newest last: the voice as it sounds lately. */
+  recent: number[][]
+  /** How alike a command must be, before strictness: measured on the user's own samples. */
+  threshold: number
   /** How alike the recorded samples were to their average, the lowest of them: a hint of how clean they were. */
   consistency: number
   samples: number
@@ -715,16 +755,75 @@ function dot(a: ArrayLike<number>, b: ArrayLike<number>): number {
   return sum
 }
 
-/** The average direction of the samples, and how well each of them agrees with it. */
+const clamp = (value: number, low: number, high: number): number =>
+  Math.min(high, Math.max(low, value))
+
+/**
+ * Learns a voice from its samples: their average, and a threshold of its own. Each sample is scored against the
+ * average of the others; how the worst of them did is how the user's commands can be expected to do with this
+ * voice and this microphone, and the threshold goes a margin below that.
+ */
 export function makeProfile(embeddings: ArrayLike<number>[], now = new Date()): SpeakerProfile {
   if (embeddings.length === 0) throw new Error('no samples')
-  const units = embeddings.map(unit)
-  const sum = new Array<number>(units[0].length).fill(0)
-  for (const vector of units) vector.forEach((value, i) => (sum[i] += value))
+  const vectors = embeddings.map(unit)
+  const sum = new Array<number>(vectors[0].length).fill(0)
+  for (const vector of vectors) vector.forEach((value, i) => (sum[i] += value))
   const embedding = unit(sum)
-  const consistency = Math.min(...units.map((vector) => dot(vector, embedding)))
-  return { embedding, consistency, samples: embeddings.length, created: now.toISOString() }
+  const consistency = Math.min(...vectors.map((vector) => dot(vector, embedding)))
+  const selfScores =
+    vectors.length >= 3
+      ? vectors.map((vector) => dot(vector, unit(sum.map((value, i) => value - vector[i]))))
+      : []
+  const threshold =
+    selfScores.length > 0
+      ? clamp(Math.min(...selfScores) - CALIBRATION_MARGIN, LOWEST_THRESHOLD, HIGHEST_THRESHOLD)
+      : DEFAULT_THRESHOLD
+  return {
+    embedding,
+    vectors,
+    recent: [],
+    threshold,
+    consistency,
+    samples: embeddings.length,
+    created: now.toISOString()
+  }
 }
+
+/** How alike a voice is to the user's: to their average, or to the two samples it is closest to, whichever is more. */
+export function speakerScore(profile: SpeakerProfile, embedding: ArrayLike<number>): number {
+  const voice = unit(embedding)
+  const toAverage = dot(profile.embedding, voice)
+  const closest = [...profile.vectors, ...profile.recent]
+    .map((vector) => dot(vector, voice))
+    .sort((a, b) => b - a)
+  const toClosest = closest.length >= 2 ? (closest[0] + closest[1]) / 2 : (closest[0] ?? toAverage)
+  return Math.max(toAverage, toClosest)
+}
+
+/** The score a command needs, for this user, this strictness and a command this long. */
+export function speakerThreshold(
+  profile: SpeakerProfile,
+  strictness: SpeakerStrictness,
+  seconds: number
+): number {
+  const allowance = seconds < SHORT_SECONDS ? SHORT_ALLOWANCE : 0
+  return clamp(profile.threshold + STRICTNESS_OFFSET[strictness] - allowance, 0.15, 0.75)
+}
+
+/** A command that was clearly the user's is remembered; returns the updated profile, or null when it was not clear. */
+export function adaptProfile(
+  profile: SpeakerProfile,
+  embedding: ArrayLike<number>,
+  score: number
+): SpeakerProfile | null {
+  if (score < profile.threshold + ADAPT_MARGIN) return null
+  return { ...profile, recent: [...profile.recent, unit(embedding)].slice(-RECENT_KEPT) }
+}
+
+const isVector = (value: unknown, length: number): value is number[] =>
+  Array.isArray(value) &&
+  value.length === length &&
+  value.every((item) => typeof item === 'number' && Number.isFinite(item))
 
 /** Takes what was stored and returns a profile, or null when it is not one. */
 export function sanitizeProfile(raw: unknown): SpeakerProfile | null {
@@ -734,12 +833,20 @@ export function sanitizeProfile(raw: unknown): SpeakerProfile | null {
   if (
     !Array.isArray(embedding) ||
     embedding.length < 16 ||
-    !embedding.every((value) => typeof value === 'number' && Number.isFinite(value))
+    !isVector(embedding, embedding.length)
   ) {
     return null
   }
+  const vectorsOf = (value: unknown): number[][] =>
+    Array.isArray(value) ? value.filter((item) => isVector(item, embedding.length)) : []
   return {
-    embedding: embedding as number[],
+    embedding,
+    vectors: vectorsOf(input.vectors),
+    recent: vectorsOf(input.recent).slice(-RECENT_KEPT),
+    threshold:
+      typeof input.threshold === 'number' && Number.isFinite(input.threshold)
+        ? clamp(input.threshold, LOWEST_THRESHOLD, HIGHEST_THRESHOLD)
+        : DEFAULT_THRESHOLD,
     consistency: typeof input.consistency === 'number' ? input.consistency : 0,
     samples: typeof input.samples === 'number' ? input.samples : 0,
     created: typeof input.created === 'string' ? input.created : ''
