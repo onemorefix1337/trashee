@@ -37,7 +37,11 @@ export function parseYandexLink(text: string): YandexLink | null {
       return { type: 'playlist', login: second, kind: Number(fourth) }
     if (first === 'playlist' && second && NUMBER.test(third ?? '') && parts.length === 3)
       return { type: 'playlist', login: second, kind: Number(third) }
-    if ((first === 'playlists' || first === 'playlist') && /^[\w.-]{6,}$/.test(second ?? '') && parts.length === 2)
+    if (
+      (first === 'playlists' || first === 'playlist') &&
+      /^[\w.-]{6,}$/.test(second ?? '') &&
+      parts.length === 2
+    )
       return { type: 'playlist', uuid: second }
     return null
   }

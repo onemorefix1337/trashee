@@ -82,7 +82,11 @@ export class YandexMusic {
       headers['Content-Type'] = 'application/json'
     }
 
-    const res = await this.fetchFn(url, { method: opts.method ?? (body ? 'POST' : 'GET'), headers, body })
+    const res = await this.fetchFn(url, {
+      method: opts.method ?? (body ? 'POST' : 'GET'),
+      headers,
+      body
+    })
     const text = await res.text()
     let parsed: any = null
     try {
@@ -146,8 +150,11 @@ export class YandexMusic {
     const uid = await this.userId()
     const result = await this.request<any>(`/users/${uid}/likes/tracks`)
     const items: any[] = result?.library?.tracks ?? []
-    const sorted = items.sort((a, b) => String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? '')))
-    const newestFirst = limit !== undefined && limit < sorted.length ? sorted.slice(0, limit) : sorted
+    const sorted = items.sort((a, b) =>
+      String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? ''))
+    )
+    const newestFirst =
+      limit !== undefined && limit < sorted.length ? sorted.slice(0, limit) : sorted
     const tracks = await this.tracks(
       newestFirst.map((t) => (t.albumId ? `${t.id}:${t.albumId}` : String(t.id)))
     )

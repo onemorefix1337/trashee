@@ -29,14 +29,19 @@ let activeProxyRules: string | null = null
  * If active, applies proxy configuration with explicit bypass rules for all Yandex services,
  * ensuring all Yandex traffic connects directly even when VPN / proxy is enabled.
  */
-export async function syncProxySettings(ses: Electron.Session = session.defaultSession): Promise<void> {
+export async function syncProxySettings(
+  ses: Electron.Session = session.defaultSession
+): Promise<void> {
   try {
     // Resolve proxy for an external service that typically requires/uses VPN in Russia
     const resolved = await ses.resolveProxy('https://music.youtube.com')
 
     let proxyRules: string | null = null
     if (resolved && !resolved.startsWith('DIRECT')) {
-      const parts = resolved.split(';').map((p) => p.trim()).filter(Boolean)
+      const parts = resolved
+        .split(';')
+        .map((p) => p.trim())
+        .filter(Boolean)
       const valid = parts.find((p) => !p.startsWith('DIRECT'))
       if (valid) {
         const [scheme, addr] = valid.split(/\s+/)
@@ -87,7 +92,9 @@ export async function syncProxySettings(ses: Electron.Session = session.defaultS
 }
 
 /** Starts continuous sync of proxy rules (e.g. when user enables/disables VPN). */
-export function startProxyBypassMonitor(ses: Electron.Session = session.defaultSession): () => void {
+export function startProxyBypassMonitor(
+  ses: Electron.Session = session.defaultSession
+): () => void {
   void syncProxySettings(ses)
   const timer = setInterval(() => {
     void syncProxySettings(ses)

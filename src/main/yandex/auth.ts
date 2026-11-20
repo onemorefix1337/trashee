@@ -42,7 +42,10 @@ export async function requestDeviceCode(fetchFn?: typeof fetch): Promise<DeviceC
  * Returns the access token, or null while the user has not confirmed the code yet.
  * Throws OAuthError when the login cannot succeed, and a plain error on network trouble (worth retrying).
  */
-export async function pollDeviceToken(deviceCode: string, fetchFn?: typeof fetch): Promise<string | null> {
+export async function pollDeviceToken(
+  deviceCode: string,
+  fetchFn?: typeof fetch
+): Promise<string | null> {
   const fetcher = fetchFn ?? globalThis.fetch
   const res = await fetcher(`${OAUTH}/token`, {
     method: 'POST',
