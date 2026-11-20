@@ -55,17 +55,17 @@ fun TrackMenuButton(track: Track) {
                 text = { Text(label, color = Palette.Text) },
                 onClick = { open = false; run() },
             )
-            item(if (isLiked) "❤️ Убрать лайк" else "🤍 Нравится") {
+            item(if (isLiked) "Убрать лайк" else "Нравится") {
                 scope.launch { app.repo.toggleLike(track) }
             }
-            item("💔 Не нравится") {
+            item("Не нравится") {
                 if (app.engine.ui.value.track?.id == track.id) {
                     app.engine.dislikeCurrent()
                 } else {
                     scope.launch { app.repo.dislikeTrack(track) }
                 }
             }
-            item("⚡ Моя волна по треку") {
+            item("Моя волна по треку") {
                 app.engine.startWave("track:${track.id}")
                 nav.playerOpen = true
             }

@@ -26,15 +26,15 @@ function itemsFor(track: Track, isLiked: boolean): Item[] {
   const album = track.albums.find((candidate) => candidate.id)
   const items: Item[] = [
     {
-      label: isLiked ? '❤️ Убрать лайк' : '🤍 Нравится',
+      label: isLiked ? 'Убрать лайк' : 'Нравится',
       run: () => void toggleLike(track)
     },
     {
-      label: '💔 Не нравится',
+      label: 'Не нравится',
       run: () => void dislikeTrack(track)
     },
     {
-      label: '⚡ Моя волна по треку',
+      label: 'Моя волна по треку',
       run: () => void startWave(`track:${track.id}`)
     },
     { label: 'Играть дальше', run: () => enqueueNext([track]) },
