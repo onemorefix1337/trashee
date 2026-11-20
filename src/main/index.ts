@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, protocol } from 'electron'
+import { app, shell, BrowserWindow, protocol, net } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
@@ -11,6 +11,7 @@ import { hidesOnClose, refreshTray, registerTray } from './tray'
 import { registerUpdater } from './updater'
 import { MIN_SIZE, loadWindowBounds, trackWindowBounds } from './window-state'
 import { coverResponse } from './yandex/stream'
+import { startProxyBypassMonitor } from './proxy'
 
 const SCHEME = 'trashee-media'
 
@@ -120,9 +121,12 @@ app.whenReady().then(() => {
   // A packaged macOS app brings its own icon; in development the Dock would show Electron's.
   if (process.platform === 'darwin') app.dock?.setIcon(icon)
 
+  startProxyBypassMonitor()
+  app.setAsDefaultProtocolClient('trashee')
+
   protocol.handle(SCHEME, (request) =>
     new URL(request.url).hostname === 'cover'
-      ? coverResponse(request, offlineCover)
+      ? coverResponse(request, offlineCover, (input, init) => net.fetch(String(input), init))
       : streamer.handle(request)
   )
   registerIpc(() => mainWindow)

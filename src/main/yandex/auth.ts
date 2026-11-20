@@ -15,8 +15,9 @@ const randomDeviceId = (): string =>
     () => 'abcdefghijklmnopqrstuvwxyz0123456789'[Math.floor(Math.random() * 36)]
   ).join('')
 
-export async function requestDeviceCode(): Promise<DeviceCode> {
-  const res = await fetch(`${OAUTH}/device/code`, {
+export async function requestDeviceCode(fetchFn?: typeof fetch): Promise<DeviceCode> {
+  const fetcher = fetchFn ?? globalThis.fetch
+  const res = await fetcher(`${OAUTH}/device/code`, {
     method: 'POST',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     body: new URLSearchParams({
@@ -41,8 +42,9 @@ export async function requestDeviceCode(): Promise<DeviceCode> {
  * Returns the access token, or null while the user has not confirmed the code yet.
  * Throws OAuthError when the login cannot succeed, and a plain error on network trouble (worth retrying).
  */
-export async function pollDeviceToken(deviceCode: string): Promise<string | null> {
-  const res = await fetch(`${OAUTH}/token`, {
+export async function pollDeviceToken(deviceCode: string, fetchFn?: typeof fetch): Promise<string | null> {
+  const fetcher = fetchFn ?? globalThis.fetch
+  const res = await fetcher(`${OAUTH}/token`, {
     method: 'POST',
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     body: new URLSearchParams({

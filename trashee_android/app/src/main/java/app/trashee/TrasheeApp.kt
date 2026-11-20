@@ -42,6 +42,7 @@ class TrasheeApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        app.trashee.api.DirectNetwork.init(this)
         repo = Repo(this, scope)
         caches = Caches(this, repo)
         offline = OfflineLibrary(this, caches) { track -> repo.lyrics(track) }
@@ -51,7 +52,10 @@ class TrasheeApp : Application() {
         // Covers saved with a collection are used first, so they show up without a connection too.
         SingletonImageLoader.setSafe {
             ImageLoader.Builder(this)
-                .components { add(OfflineCovers(offline)) }
+                .components {
+                    add(OfflineCovers(offline))
+                    add(coil3.network.okhttp.OkHttpNetworkFetcherFactory(callFactory = { app.trashee.api.sharedHttp }))
+                }
                 .build()
         }
         sync = app.trashee.sync.SyncController(this)

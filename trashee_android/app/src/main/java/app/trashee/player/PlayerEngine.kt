@@ -286,6 +286,28 @@ class PlayerEngine(
         )
         .build()
 
+    fun playCustomStream(url: String, sourceName: String) {
+        val current = _ui.value.track ?: return
+        val item = MediaItem.Builder()
+            .setMediaId(current.id)
+            .setUri(url)
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(current.title)
+                    .setArtist(current.artistNames)
+                    .setAlbumTitle(current.albums.firstOrNull()?.title)
+                    .setArtworkUri(coverUrl(current.coverUri)?.let(Uri::parse))
+                    .setDurationMs(current.durationMs)
+                    .setIsPlayable(true)
+                    .build(),
+            )
+            .build()
+        player.setMediaItem(item, 0L)
+        player.prepare()
+        player.play()
+        Toasts.say("Слушаем без цензуры: $sourceName")
+    }
+
     /* ---------- wave feedback ---------- */
 
     private fun feedback(type: WaveEvent, track: Track?, playedSeconds: Double? = null) {

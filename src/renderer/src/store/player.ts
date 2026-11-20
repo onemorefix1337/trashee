@@ -274,6 +274,26 @@ function handleFailure(): void {
   if (consecutiveErrors < MAX_CONSECUTIVE_ERRORS) setTimeout(() => void next(false), 800)
 }
 
+/** Streams an alternative uncensored audio source for the current track. */
+export function playCustomStream(url: string, sourceName: string): void {
+  const track = currentTrack(state)
+  if (!track) return
+  prefetchedFor = null
+  set({ position: 0, error: null, loading: true })
+  audio.src = url
+  getAnalyser()
+  audio
+    .play()
+    .then(() => {
+      set({ playing: true, loading: false })
+      showToast(`Слушаем без цензуры: ${sourceName}`)
+    })
+    .catch((err) => {
+      onPlayRejected(err)
+      showToast(`Не удалось запустить стрим с ${sourceName}`)
+    })
+}
+
 function jump(index: number): void {
   set({ index })
   loadCurrent()
@@ -589,6 +609,24 @@ export async function dislikeCurrent(): Promise<void> {
   })
   // The dislike already told the radio everything a skip would, so skip quietly.
   await next(false)
+}
+
+export async function dislikeTrack(track: Track): Promise<void> {
+  const current = state.queue[state.index]
+  if (current && current.id === track.id) {
+    return dislikeCurrent()
+  }
+  try {
+    await window.api.setDislike(track.id, true)
+    if (state.likedIds.has(track.id)) {
+      const ids = new Set(state.likedIds)
+      ids.delete(track.id)
+      set({ likedIds: ids })
+    }
+    showToast(`Больше не рекомендовать «${track.title}»`)
+  } catch {
+    showToast('Не удалось поставить дизлайк')
+  }
 }
 
 export function jumpTo(index: number): void {

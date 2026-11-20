@@ -25,8 +25,14 @@ export class TrackStreamer {
   private cache = new Map<string, Cached>()
   private files: TrackCache | null = null
   quality: Quality = 'hq'
+  private readonly fetchFn: typeof fetch
 
-  constructor(private readonly getApi: () => YandexMusic | null) {}
+  constructor(
+    private readonly getApi: () => YandexMusic | null,
+    fetchFn?: typeof fetch
+  ) {
+    this.fetchFn = fetchFn ?? globalThis.fetch
+  }
 
   /** Tracks found on disk are played from there instead of the network. */
   attachFiles(files: TrackCache): void {
@@ -71,7 +77,7 @@ export class TrackStreamer {
       if (onDisk) return serveFile(onDisk, range)
 
       const info = await this.info(trackId)
-      const upstream = await fetch(info.url, { headers: range ? { Range: range } : {} })
+      const upstream = await this.fetchFn(info.url, { headers: range ? { Range: range } : {} })
       if (!upstream.ok && upstream.status !== 206) {
         this.cache.delete(`${trackId}:${this.quality}`)
         return new Response(null, { status: 502 })
@@ -106,7 +112,8 @@ export class TrackStreamer {
 /** Fetches a cover through the main process so the renderer can read its pixels (dominant color). */
 export async function coverResponse(
   request: Request,
-  saved?: (uri: string, size: string) => { file: string; type: string } | null
+  saved?: (uri: string, size: string) => { file: string; type: string } | null,
+  fetchFn?: typeof fetch
 ): Promise<Response> {
   const url = new URL(request.url)
   const uri = decodeURIComponent(url.pathname.replace(/^\//, ''))
@@ -122,7 +129,8 @@ export async function coverResponse(
       }
     })
   }
-  const upstream = await fetch(`https://${uri.replace('%%', size)}`)
+  const fetcher = fetchFn ?? globalThis.fetch
+  const upstream = await fetcher(`https://${uri.replace('%%', size)}`)
   return new Response(upstream.body, {
     status: upstream.status,
     headers: {

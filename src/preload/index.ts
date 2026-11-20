@@ -41,6 +41,7 @@ const api = {
   platform: process.platform,
   restoreSession: (): Promise<Restore> => ipcRenderer.invoke('auth:restore'),
   copy: (text: string): Promise<void> => ipcRenderer.invoke('app:copy', text),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('app:open-external', url),
   login: (): Promise<Account> => ipcRenderer.invoke('auth:login'),
   cancelLogin: (): Promise<void> => ipcRenderer.invoke('auth:cancel'),
   logout: (): Promise<void> => ipcRenderer.invoke('auth:logout'),

@@ -5,9 +5,11 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -40,7 +42,12 @@ fun downloadTrackFile(app: TrasheeApp, track: Track) {
 fun TrackMenuButton(track: Track) {
     val app = LocalApp.current
     val nav = LocalNav.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val likedIds by app.repo.likedIds.collectAsState()
+    val isLiked = track.id in likedIds
     var open by remember { mutableStateOf(false) }
+
     Box {
         IconAction(R.drawable.ic_more, "Ещё", tint = Palette.Muted, iconSize = 22.dp, box = 40.dp) { open = true }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }, containerColor = Palette.SurfaceHover) {
@@ -48,9 +55,24 @@ fun TrackMenuButton(track: Track) {
                 text = { Text(label, color = Palette.Text) },
                 onClick = { open = false; run() },
             )
+            item(if (isLiked) "❤️ Убрать лайк" else "🤍 Нравится") {
+                scope.launch { app.repo.toggleLike(track) }
+            }
+            item("💔 Не нравится") {
+                if (app.engine.ui.value.track?.id == track.id) {
+                    app.engine.dislikeCurrent()
+                } else {
+                    scope.launch { app.repo.dislikeTrack(track) }
+                }
+            }
+            item("⚡ Моя волна по треку") {
+                app.engine.startWave("track:${track.id}")
+                nav.playerOpen = true
+            }
             item("Играть дальше") { app.engine.enqueueNext(listOf(track)) }
             item("Добавить в плейлист") { nav.playlistTarget = track }
             item("Скачать файл") { downloadTrackFile(app, track) }
+            item("Поделиться") { shareTrack(context, track) }
             track.albums.firstOrNull()?.let { album -> item("Альбом: ${album.title}") { nav.push(Route.Collection(CollectionRef.AlbumRef(album.id))) } }
             track.artists.forEach { artist -> item("Исполнитель: ${artist.name}") { nav.push(Route.Collection(CollectionRef.ArtistRef(artist.id))) } }
         }

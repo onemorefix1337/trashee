@@ -34,7 +34,10 @@ const RESTORE_RETRY_MS = 2000
 let api: YandexMusic | null = null
 let loginCancelled = false
 
-export const streamer = new TrackStreamer(() => api)
+export const streamer = new TrackStreamer(
+  () => api,
+  (input, init) => net.fetch(String(input), init)
+)
 
 function requireApi(): YandexMusic {
   if (!api) throw new Error('Не выполнен вход')
@@ -42,7 +45,7 @@ function requireApi(): YandexMusic {
 }
 
 async function signIn(token: string): Promise<Account> {
-  const candidate = new YandexMusic(token)
+  const candidate = new YandexMusic(token, (input, init) => net.fetch(String(input), init))
   const account = await candidate.account()
   api = candidate
   return account
@@ -56,7 +59,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 /** One poll that treats network trouble like "not confirmed yet"; real OAuth failures still throw. */
 async function pollOnce(deviceCode: string): Promise<string | null> {
   try {
-    return await pollDeviceToken(deviceCode)
+    return await pollDeviceToken(deviceCode, (input, init) => net.fetch(String(input), init))
   } catch (error) {
     if (error instanceof OAuthError) throw error
     return null
@@ -98,6 +101,7 @@ export function registerIpc(getPlayerWindow: () => BrowserWindow | null): void {
   const library = new OfflineLibrary(cacheRoot, {
     cache: files,
     quality: () => streamer.quality,
+    fetch: (input, init) => net.fetch(String(input), init),
     lyrics: (track) => lyricsFor(trackQuery(track)),
     emit: (state: OfflineState) => send('offline:state', state)
   })
@@ -134,7 +138,7 @@ export function registerIpc(getPlayerWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('auth:login', async (event): Promise<Account> => {
     loginCancelled = false
-    const code = await requestDeviceCode()
+    const code = await requestDeviceCode((input, init) => net.fetch(String(input), init))
     event.sender.send('auth:code', code)
     shell.openExternal(code.verificationUrl)
 
@@ -158,6 +162,12 @@ export function registerIpc(getPlayerWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('app:copy', (_, text: unknown) => {
     if (typeof text === 'string') clipboard.writeText(text)
+  })
+
+  ipcMain.handle('app:open-external', (_, url: unknown) => {
+    if (typeof url === 'string' && /^(https?|spotify):/i.test(url)) {
+      void shell.openExternal(url)
+    }
   })
 
   ipcMain.handle('auth:cancel', () => {

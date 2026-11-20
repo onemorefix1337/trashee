@@ -309,6 +309,27 @@ class Repo(context: Context, private val scope: CoroutineScope) {
         }
     }
 
+    suspend fun dislikeTrack(track: Track): Boolean {
+        val client = api
+        if (client == null) {
+            Toasts.say("Нет связи: дизлайк не отправлен")
+            return false
+        }
+        return try {
+            client.setDislike(track.id, true)
+            if (track.id in _likedIds.value) {
+                _likedIds.value = _likedIds.value - track.id
+            }
+            Toasts.say("Больше не рекомендовать «${track.title}»")
+            true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            Toasts.say("Не удалось поставить дизлайк")
+            false
+        }
+    }
+
     /** The page of a collection; when Yandex cannot be reached, the copy saved for offline listening. */
     suspend fun collection(ref: CollectionRef): Collection = try {
         (api ?: error("Нет связи")).collection(ref)

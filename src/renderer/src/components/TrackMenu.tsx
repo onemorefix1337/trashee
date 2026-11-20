@@ -6,7 +6,7 @@ import { artistNames } from '../lib/cover'
 import { openCollection, openSimilar } from '../store/nav'
 import { downloadTrackFile } from '../store/offline'
 import { openPlaylistPicker } from '../store/picker'
-import { enqueueNext } from '../store/player'
+import { dislikeTrack, enqueueNext, startWave, toggleLike, usePlayer } from '../store/player'
 
 export interface MenuPoint {
   x: number
@@ -22,9 +22,21 @@ interface Item {
   run: () => void
 }
 
-function itemsFor(track: Track): Item[] {
+function itemsFor(track: Track, isLiked: boolean): Item[] {
   const album = track.albums.find((candidate) => candidate.id)
   const items: Item[] = [
+    {
+      label: isLiked ? '❤️ Убрать лайк' : '🤍 Нравится',
+      run: () => void toggleLike(track)
+    },
+    {
+      label: '💔 Не нравится',
+      run: () => void dislikeTrack(track)
+    },
+    {
+      label: '⚡ Моя волна по треку',
+      run: () => void startWave(`track:${track.id}`)
+    },
     { label: 'Играть дальше', run: () => enqueueNext([track]) },
     { label: 'Добавить в плейлист', run: () => openPlaylistPicker(track) },
     { label: 'Скачать файл', run: () => void downloadTrackFile(track) }
@@ -64,7 +76,8 @@ function Menu({
   onClose: () => void
 }): JSX.Element {
   const root = useRef<HTMLDivElement>(null)
-  const items = itemsFor(track)
+  const isLiked = usePlayer((s) => s.likedIds.has(track.id))
+  const items = itemsFor(track, isLiked)
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent): void => {

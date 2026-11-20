@@ -12,17 +12,39 @@ sealed interface YandexLink {
     data class PlaylistUuid(val uuid: String) : YandexLink
 }
 
-private val HOST = Regex("^(?:www\\.)?music\\.yandex\\.[a-z]{2,3}$", RegexOption.IGNORE_CASE)
+private val HOST = Regex("^(?:www\\.)?(?:music\\.yandex\\.[a-z]{2,3}|music\\.ya\\.ru)$", RegexOption.IGNORE_CASE)
 private val NUMBER = Regex("^\\d{1,12}$")
 private val UUID = Regex("^[\\w.-]{6,}$")
 
 /**
- * Reads a Yandex Music link (album, track, artist, playlist; with or without "https://").
+ * Reads a Yandex Music link (album, track, artist, playlist; with or without "https://")
+ * or a direct trashee:// link.
  * Anything else, including a search phrase, gives null.
  */
 fun parseYandexLink(text: String): YandexLink? {
     val trimmed = text.trim()
     if (trimmed.isEmpty() || trimmed.any { it.isWhitespace() }) return null
+    fun number(value: String?) = value != null && NUMBER.matches(value)
+
+    if (trimmed.startsWith("trashee://", ignoreCase = true)) {
+        val path = trimmed.substring(10).trimStart('/')
+        val parts = path.split('/').filter { it.isNotEmpty() }.map { URLDecoder.decode(it, "UTF-8") }
+        val first = parts.getOrNull(0)?.lowercase()
+        val second = parts.getOrNull(1)
+        val third = parts.getOrNull(2)?.lowercase()
+        val fourth = parts.getOrNull(3)
+        return when {
+            first == "album" && number(second) && third == "track" && number(fourth) -> YandexLink.Track(fourth!!, second!!.toLong())
+            first == "album" && number(second) && parts.size == 2 -> YandexLink.Album(second!!.toLong())
+            first == "track" && number(second) && parts.size == 2 -> YandexLink.Track(second!!)
+            first == "artist" && number(second) && parts.size == 2 -> YandexLink.Artist(second!!.toLong())
+            first == "users" && second != null && third == "playlists" && number(fourth) -> YandexLink.UserPlaylist(second, fourth!!.toLong())
+            first == "playlist" && second != null && number(third) && parts.size == 3 -> YandexLink.UserPlaylist(second, third!!.toLong())
+            (first == "playlists" || first == "playlist") && second != null && UUID.matches(second) && parts.size == 2 -> YandexLink.PlaylistUuid(second)
+            else -> null
+        }
+    }
+
     val uri = try {
         URI(if (Regex("^https?://", RegexOption.IGNORE_CASE).containsMatchIn(trimmed)) trimmed else "https://$trimmed")
     } catch (_: Exception) {
@@ -36,7 +58,6 @@ fun parseYandexLink(text: String): YandexLink? {
     val second = parts.getOrNull(1)
     val third = parts.getOrNull(2)
     val fourth = parts.getOrNull(3)
-    fun number(value: String?) = value != null && NUMBER.matches(value)
     return when {
         first == "album" && number(second) && third == "track" && number(fourth) -> YandexLink.Track(fourth!!, second!!.toLong())
         first == "album" && number(second) && parts.size == 2 -> YandexLink.Album(second!!.toLong())

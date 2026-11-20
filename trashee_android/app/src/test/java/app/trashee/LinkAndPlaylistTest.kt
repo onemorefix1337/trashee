@@ -30,9 +30,19 @@ class LinkAndPlaylistTest {
 
     @Test
     fun `other Yandex Music domains work too`() {
-        for (host in listOf("music.yandex.com", "music.yandex.by", "music.yandex.kz", "www.music.yandex.ru")) {
+        for (host in listOf("music.yandex.com", "music.yandex.by", "music.yandex.kz", "www.music.yandex.ru", "music.ya.ru")) {
             assertEquals(YandexLink.Album(5), parseYandexLink("https://$host/album/5"))
         }
+    }
+
+    @Test
+    fun `direct trashee scheme links work`() {
+        assertEquals(YandexLink.Track("999", null), parseYandexLink("trashee://track/999"))
+        assertEquals(YandexLink.Track("456", 123), parseYandexLink("trashee://album/123/track/456"))
+        assertEquals(YandexLink.Album(789), parseYandexLink("trashee://album/789"))
+        assertEquals(YandexLink.Artist(55), parseYandexLink("trashee://artist/55"))
+        assertEquals(YandexLink.UserPlaylist("alice", 42), parseYandexLink("trashee://users/alice/playlists/42"))
+        assertEquals(YandexLink.PlaylistUuid("lk.uuid123"), parseYandexLink("trashee://playlist/lk.uuid123"))
     }
 
     @Test

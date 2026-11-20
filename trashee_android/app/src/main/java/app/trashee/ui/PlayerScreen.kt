@@ -37,6 +37,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import app.trashee.data.Track
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,9 +56,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextLinkStyles
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.Player
@@ -211,21 +218,47 @@ fun PlayerScreen() {
                     label = "title",
                 ) { shown ->
                     Column {
-                        Text(
-                            buildString {
-                                append(shown.title)
-                                shown.version?.let { append(" · $it") }
-                            },
-                            color = Palette.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            shown.artistNames, color = Palette.Muted, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() }, indication = null,
-                                enabled = shown.artists.isNotEmpty(),
-                            ) { nav.push(Route.Collection(CollectionRef.ArtistRef(shown.artists.first().id))) },
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                buildString {
+                                    append(shown.title)
+                                    shown.version?.let { append(" · $it") }
+                                },
+                                color = Palette.Text, fontSize = 24.sp, fontWeight = FontWeight.Bold,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false),
+                            )
+                        }
+                        if (shown.artists.isEmpty()) {
+                            Text(
+                                shown.artistNames, color = Palette.Muted, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                            )
+                        } else {
+                            val artistText = remember(shown.artists) {
+                                buildAnnotatedString {
+                                    shown.artists.forEachIndexed { index, artist ->
+                                        if (index > 0) append(", ")
+                                        withLink(
+                                            LinkAnnotation.Clickable(
+                                                tag = artist.id.toString(),
+                                                styles = TextLinkStyles(style = SpanStyle(color = Palette.Muted)),
+                                                linkInteractionListener = {
+                                                    nav.push(Route.Collection(CollectionRef.ArtistRef(artist.id)))
+                                                },
+                                            ),
+                                        ) {
+                                            append(artist.name)
+                                        }
+                                    }
+                                }
+                            }
+                            Text(
+                                text = artistText,
+                                fontSize = 16.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
                 LikeButton(track, iconSize = 28.dp, box = 48.dp)

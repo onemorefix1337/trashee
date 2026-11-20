@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
             else -> null
         } ?: return
         // A shared text is often a sentence with the link somewhere inside it.
-        val url = Regex("https?://\\S+").find(text)?.value ?: text
+        val url = Regex("(?:https?|trashee)://\\S+", RegexOption.IGNORE_CASE).find(text)?.value ?: text
         parseYandexLink(url)?.let { (application as TrasheeApp).incomingLink.value = it }
     }
 

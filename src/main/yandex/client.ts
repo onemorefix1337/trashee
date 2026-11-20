@@ -55,9 +55,11 @@ const ARTIST_ALBUMS = 50
 export class YandexMusic {
   private uid: number | null = null
   private readonly token: string
+  private readonly fetchFn: typeof fetch
 
-  constructor(token: string) {
+  constructor(token: string, fetchFn?: typeof fetch) {
     this.token = token
+    this.fetchFn = fetchFn ?? globalThis.fetch
   }
 
   private async request<T>(path: string, opts: RequestOptions = {}): Promise<T> {
@@ -80,7 +82,7 @@ export class YandexMusic {
       headers['Content-Type'] = 'application/json'
     }
 
-    const res = await fetch(url, { method: opts.method ?? (body ? 'POST' : 'GET'), headers, body })
+    const res = await this.fetchFn(url, { method: opts.method ?? (body ? 'POST' : 'GET'), headers, body })
     const text = await res.text()
     let parsed: any = null
     try {
@@ -119,8 +121,20 @@ export class YandexMusic {
 
   async tracks(ids: string[]): Promise<Track[]> {
     if (ids.length === 0) return []
-    const result = await this.request<any[]>('/tracks', { form: { 'track-ids': ids.join(',') } })
-    return result.map(normalizeTrack)
+    if (ids.length <= TRACKS_PER_REQUEST) {
+      const result = await this.request<any[]>('/tracks', { form: { 'track-ids': ids.join(',') } })
+      return result.map(normalizeTrack)
+    }
+    const chunks: string[][] = []
+    for (let i = 0; i < ids.length; i += TRACKS_PER_REQUEST) {
+      chunks.push(ids.slice(i, i + TRACKS_PER_REQUEST))
+    }
+    const results = await Promise.all(
+      chunks.map((batch) =>
+        this.request<any[]>('/tracks', { form: { 'track-ids': batch.join(',') } })
+      )
+    )
+    return results.flat().map(normalizeTrack)
   }
 
   async similar(trackId: string): Promise<Track[]> {
@@ -128,13 +142,12 @@ export class YandexMusic {
     return (result?.similarTracks ?? []).map(normalizeTrack)
   }
 
-  async likedTracks(limit = 150): Promise<Track[]> {
+  async likedTracks(limit?: number): Promise<Track[]> {
     const uid = await this.userId()
     const result = await this.request<any>(`/users/${uid}/likes/tracks`)
     const items: any[] = result?.library?.tracks ?? []
-    const newestFirst = items
-      .sort((a, b) => String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? '')))
-      .slice(0, limit)
+    const sorted = items.sort((a, b) => String(b.timestamp ?? '').localeCompare(String(a.timestamp ?? '')))
+    const newestFirst = limit !== undefined && limit < sorted.length ? sorted.slice(0, limit) : sorted
     const tracks = await this.tracks(
       newestFirst.map((t) => (t.albumId ? `${t.id}:${t.albumId}` : String(t.id)))
     )
@@ -184,7 +197,7 @@ export class YandexMusic {
         query: { format, timeStamp: ts, sign }
       })
       if (!info?.downloadUrl) return null
-      const res = await fetch(info.downloadUrl, { signal: AbortSignal.timeout(15_000) })
+      const res = await this.fetchFn(info.downloadUrl, { signal: AbortSignal.timeout(15_000) })
       return res.ok ? await res.text() : null
     } catch (error) {
       // "This track has no lyrics" arrives as a client error; only real failures are worth reporting.

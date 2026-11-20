@@ -24,6 +24,7 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -50,6 +51,8 @@ fun Throwable.isAuthFailure(): Boolean = this is YandexError && (status == 401 |
 
 val sharedHttp: OkHttpClient by lazy {
     OkHttpClient.Builder()
+        .socketFactory(DirectSocketFactory())
+        .dns(directDns)
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
@@ -131,25 +134,36 @@ class YandexClient(private val token: String, private val http: OkHttpClient = s
 
     suspend fun tracks(ids: List<String>): List<Track> {
         if (ids.isEmpty()) return emptyList()
-        val result = request("/tracks", CallSpec(form = mapOf("track-ids" to ids.joinToString(","))))
-        return result.list().map(::normalizeTrack)
+        if (ids.size <= TRACKS_PER_REQUEST) {
+            val result = request("/tracks", CallSpec(form = mapOf("track-ids" to ids.joinToString(","))))
+            return result.list().map(::normalizeTrack)
+        }
+        return coroutineScope {
+            ids.chunked(TRACKS_PER_REQUEST).map { chunk ->
+                async {
+                    val result = request("/tracks", CallSpec(form = mapOf("track-ids" to chunk.joinToString(","))))
+                    result.list().map(::normalizeTrack)
+                }
+            }.awaitAll().flatten()
+        }
     }
 
     suspend fun similar(trackId: String): List<Track> =
         request("/tracks/$trackId/similar")["similarTracks"].list().map(::normalizeTrack)
 
-    suspend fun likedTracks(limit: Int = 150): List<Track> {
+    suspend fun likedTracks(limit: Int = Int.MAX_VALUE): List<Track> {
         val id = userId()
-        val items = request("/users/$id/likes/tracks")["library"]["tracks"].list()
+        val rawItems = request("/users/$id/likes/tracks")["library"]["tracks"].list()
             .sortedByDescending { it["timestamp"].str().orEmpty() }
-            .take(limit)
-        val tracks = tracks(items.map { t ->
+        val items = if (limit < rawItems.size) rawItems.take(limit) else rawItems
+        val trackIds = items.map { t ->
             val album = t["albumId"].str()
             if (album != null) "${t["id"].str()}:$album" else t["id"].str().orEmpty()
-        })
+        }
+        val tracks = tracks(trackIds)
         // /tracks does not preserve the requested order.
         val order = items.withIndex().associate { (i, t) -> t["id"].str().orEmpty() to i }
-        return tracks.sortedBy { order[it.id] ?: 0 }
+        return tracks.sortedBy { order[it.id] ?: Int.MAX_VALUE }
     }
 
     suspend fun likedIds(): List<String> {

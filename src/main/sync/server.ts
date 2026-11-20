@@ -192,7 +192,13 @@ export class SyncServer {
     if (discoveryPort === null) return
     try {
       const socket = createSocket({ type: 'udp4', reuseAddr: true })
-      socket.on('error', () => socket.close())
+      socket.on('error', () => {
+        try {
+          socket.close()
+        } catch {
+          /* already closed */
+        }
+      })
       socket.on('message', (message, remote) => {
         if (message.toString('utf8').trim() !== DISCOVER_MESSAGE) return
         const reply = Buffer.from(
@@ -206,7 +212,13 @@ export class SyncServer {
         )
         socket.send(reply, remote.port, remote.address)
       })
-      socket.bind(discoveryPort)
+      socket.bind(discoveryPort, '0.0.0.0', () => {
+        try {
+          socket.setBroadcast(true)
+        } catch {
+          /* broadcast option failed */
+        }
+      })
       this.udp = socket
     } catch {
       /* the phone can still be given the address by hand */

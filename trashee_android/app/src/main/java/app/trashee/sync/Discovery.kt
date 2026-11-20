@@ -43,7 +43,8 @@ fun parseDiscoveryReply(text: String, host: String): Found? = try {
 private fun broadcastAddresses(context: Context): List<InetAddress> {
     val found = mutableListOf(InetAddress.getByName("255.255.255.255"))
     val manager = context.getSystemService(ConnectivityManager::class.java) ?: return found
-    val properties = manager.getLinkProperties(manager.activeNetwork) ?: return found
+    val targetNet = app.trashee.api.DirectNetwork.getPhysicalNetwork() ?: manager.activeNetwork
+    val properties = manager.getLinkProperties(targetNet) ?: return found
     for (link in properties.linkAddresses) {
         val address = link.address as? Inet4Address ?: continue
         val bits = link.prefixLength
@@ -60,8 +61,17 @@ private fun broadcastAddresses(context: Context): List<InetAddress> {
 /** Asks the whole home network "who has trashee?" and collects the answers for a moment. */
 suspend fun discoverComputers(context: Context, waitMs: Long = 1500): List<Found> = withContext(Dispatchers.IO) {
     val found = LinkedHashMap<String, Found>()
+    val wifi = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as? android.net.wifi.WifiManager
+    val multicastLock = wifi?.createMulticastLock("trashee_discovery")?.apply {
+        setReferenceCounted(true)
+        runCatching { acquire() }
+    }
     try {
         DatagramSocket().use { socket ->
+            val physNet = app.trashee.api.DirectNetwork.getPhysicalNetwork()
+            if (physNet != null) {
+                runCatching { physNet.bindSocket(socket) }
+            }
             socket.broadcast = true
             socket.soTimeout = 250
             val ask = DISCOVER_MESSAGE.toByteArray()
@@ -83,6 +93,8 @@ suspend fun discoverComputers(context: Context, waitMs: Long = 1500): List<Found
         }
     } catch (_: Exception) {
         // No network, or the system refused: the phone can still be given the address by hand.
+    } finally {
+        multicastLock?.let { runCatching { if (it.isHeld) it.release() } }
     }
     found.values.toList()
 }

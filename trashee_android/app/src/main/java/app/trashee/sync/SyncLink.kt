@@ -93,7 +93,7 @@ class SyncLink(
     }
 
     private fun signed(target: Pairing, method: String, path: String, body: String, client: OkHttpClient = http): Request {
-        val time = System.currentTimeMillis()
+        val time = System.currentTimeMillis() + clockOffsetMs
         val nonce = randomHex(8)
         val builder = Request.Builder().url("http://${target.address}$path")
             .header("x-device", target.deviceId)
@@ -147,7 +147,11 @@ class SyncLink(
         val cancelWithScope = currentCoroutineContext()[Job]?.invokeOnCompletion { call.cancel() }
         try {
             call.execute().use { response ->
-                if (response.code == 401) throw Forgotten()
+                if (response.code == 401) {
+                    val body = runCatching { response.body.string() }.getOrNull().orEmpty()
+                    if (body.contains("unauthorized")) throw Forgotten()
+                    error("HTTP 401: $body")
+                }
                 if (!response.isSuccessful) error("HTTP ${response.code}")
                 val source = response.body.source()
                 var event = ""

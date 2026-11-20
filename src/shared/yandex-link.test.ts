@@ -33,9 +33,30 @@ test('other Yandex Music domains work too', () => {
     'music.yandex.com',
     'music.yandex.by',
     'music.yandex.kz',
-    'www.music.yandex.ru'
+    'www.music.yandex.ru',
+    'music.ya.ru'
   ])
     assert.deepEqual(parseYandexLink(`https://${host}/album/5`), { type: 'album', id: 5 })
+})
+
+test('direct trashee scheme links work', () => {
+  assert.deepEqual(parseYandexLink('trashee://track/999'), { type: 'track', id: '999' })
+  assert.deepEqual(parseYandexLink('trashee://album/123/track/456'), {
+    type: 'track',
+    id: '456',
+    albumId: 123
+  })
+  assert.deepEqual(parseYandexLink('trashee://album/789'), { type: 'album', id: 789 })
+  assert.deepEqual(parseYandexLink('trashee://artist/55'), { type: 'artist', id: 55 })
+  assert.deepEqual(parseYandexLink('trashee://users/alice/playlists/42'), {
+    type: 'playlist',
+    login: 'alice',
+    kind: 42
+  })
+  assert.deepEqual(parseYandexLink('trashee://playlist/lk.uuid123'), {
+    type: 'playlist',
+    uuid: 'lk.uuid123'
+  })
 })
 
 test('search phrases and foreign links are not links', () => {

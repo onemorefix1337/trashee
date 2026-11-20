@@ -62,6 +62,7 @@ fun BackBar(title: String? = null, onBack: () -> Unit) {
 fun CollectionScreen(ref: CollectionRef, padding: PaddingValues) {
     val app = LocalApp.current
     val nav = LocalNav.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     val ui by app.engine.ui.collectAsState()
     val pins by app.repo.pins.collectAsState()
     val scope = rememberCoroutineScope()
@@ -116,6 +117,7 @@ fun CollectionScreen(ref: CollectionRef, padding: PaddingValues) {
                                         app.repo.refreshLibrary()
                                     }
                                 }
+                                SecondaryButton("Поделиться") { shareCollection(context, data, ref) }
                             }
                         }
                     }
