@@ -10,6 +10,7 @@ files:
   - '!scripts/*'
   - '!site/**'
   - '!trashee_android/**'
+  - '!trashee_ios/**'
   - '!.github/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'

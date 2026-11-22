@@ -6,7 +6,14 @@ import { artistNames } from '../lib/cover'
 import { openCollection, openSimilar } from '../store/nav'
 import { downloadTrackFile } from '../store/offline'
 import { openPlaylistPicker } from '../store/picker'
-import { dislikeTrack, enqueueNext, startWave, toggleLike, usePlayer } from '../store/player'
+import { openShareDialog } from '../store/share'
+import {
+  dislikeTrack,
+  enqueueNext,
+  startWaveAfterCurrent,
+  toggleLike,
+  usePlayer
+} from '../store/player'
 
 export interface MenuPoint {
   x: number
@@ -35,8 +42,9 @@ function itemsFor(track: Track, isLiked: boolean): Item[] {
     },
     {
       label: 'Моя волна по треку',
-      run: () => void startWave(`track:${track.id}`)
+      run: () => void startWaveAfterCurrent(`track:${track.id}`)
     },
+    { label: 'Поделиться', run: () => openShareDialog(track) },
     { label: 'Играть дальше', run: () => enqueueNext([track]) },
     { label: 'Добавить в плейлист', run: () => openPlaylistPicker(track) },
     { label: 'Скачать файл', run: () => void downloadTrackFile(track) }

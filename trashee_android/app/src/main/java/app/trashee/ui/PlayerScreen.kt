@@ -289,7 +289,10 @@ fun PlayerScreen() {
 
             Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                 IconAction(R.drawable.ic_thumb_down, "Не нравится", tint = Palette.Muted) { engine.dislikeCurrent() }
-                IconAction(R.drawable.ic_similar, "Похожие", tint = Palette.Muted) { nav.push(Route.Similar(track)) }
+                IconAction(
+                    R.drawable.ic_wave, "Моя волна по треку",
+                    tint = if (ui.wave) accent else Palette.Muted,
+                ) { engine.startWaveAfterCurrent("track:${track.id}") }
                 IconAction(
                     R.drawable.ic_lyrics, "Текст",
                     tint = if (mode == PlayerMode.Lyrics) accent else Palette.Muted,

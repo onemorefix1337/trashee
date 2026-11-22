@@ -48,6 +48,7 @@ import SimilarPage from './components/SimilarPage'
 import Sidebar from './components/Sidebar'
 import ToastHost from './components/ToastHost'
 import PlaylistPicker from './components/PlaylistPicker'
+import ShareDialog from './components/ShareDialog'
 import UpdateDialog from './components/UpdateDialog'
 import Visualizer from './components/Visualizer'
 
@@ -439,6 +440,7 @@ export default function App(): JSX.Element {
     <MotionConfig reducedMotion={motionLevel === 'full' ? 'user' : 'always'}>
       <AnimatePresence mode="wait">{screen}</AnimatePresence>
       <PlaylistPicker />
+      <ShareDialog />
       <UpdateDialog currentVersion={appInfo?.version ?? ''} />
     </MotionConfig>
   )

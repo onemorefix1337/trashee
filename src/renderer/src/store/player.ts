@@ -560,6 +560,30 @@ export async function startWave(seed?: string): Promise<void> {
   }
 }
 
+/** Starts wave seeded by the track, queuing it right after the current track so it finishes first. */
+export async function startWaveAfterCurrent(seed?: string): Promise<void> {
+  const current = currentTrack(state)
+  if (!current || state.index < 0) {
+    return startWave(seed)
+  }
+  set({ loading: true, error: null })
+  try {
+    const batch = await window.api.waveStart(seed)
+    const tracks = batch.tracks.filter((track) => track.available && track.id !== current.id)
+    if (tracks.length === 0) throw new Error('empty wave')
+    consecutiveErrors = 0
+    set({
+      queue: [...state.queue.slice(0, state.index + 1), ...tracks],
+      wave: { sessionId: batch.sessionId, batchId: batch.batchId },
+      loading: false
+    })
+    waveFeedback('radioStarted')
+    showToast('Моя волна начнётся после текущего трека')
+  } catch {
+    set({ loading: false, error: 'Не удалось запустить Мою волну' })
+  }
+}
+
 /** Puts tracks right after the current one and leaves the rest of the queue as it was. */
 export function enqueueNext(tracks: Track[]): void {
   const playable = tracks.filter((track) => track.available)

@@ -66,13 +66,12 @@ fun TrackMenuButton(track: Track) {
                 }
             }
             item("Моя волна по треку") {
-                app.engine.startWave("track:${track.id}")
-                nav.playerOpen = true
+                app.engine.startWaveAfterCurrent("track:${track.id}")
             }
             item("Играть дальше") { app.engine.enqueueNext(listOf(track)) }
             item("Добавить в плейлист") { nav.playlistTarget = track }
             item("Скачать файл") { downloadTrackFile(app, track) }
-            item("Поделиться") { shareTrack(context, track) }
+            item("Поделиться") { nav.shareTarget = ShareItem.TrackItem(track) }
             track.albums.firstOrNull()?.let { album -> item("Альбом: ${album.title}") { nav.push(Route.Collection(CollectionRef.AlbumRef(album.id))) } }
             track.artists.forEach { artist -> item("Исполнитель: ${artist.name}") { nav.push(Route.Collection(CollectionRef.ArtistRef(artist.id))) } }
         }

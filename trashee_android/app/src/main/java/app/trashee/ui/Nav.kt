@@ -24,6 +24,9 @@ class Nav {
     /** The track the "add to playlist" sheet is open for, or null while it is closed. */
     var playlistTarget by mutableStateOf<Track?>(null)
 
+    /** The track or collection the "share" sheet is open for, or null while it is closed. */
+    var shareTarget by mutableStateOf<ShareItem?>(null)
+
     /** Which way the last change went, so screens slide in from the right when going deeper and from the left when coming back. */
     var forward by mutableStateOf(true)
         private set

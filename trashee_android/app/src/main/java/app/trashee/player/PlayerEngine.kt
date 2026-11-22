@@ -431,6 +431,50 @@ class PlayerEngine(
         }
     }
 
+    /** Starts wave seeded by the track, queuing it right after the current track so it finishes first. */
+    fun startWaveAfterCurrent(seed: String? = null) {
+        val current = _ui.value.track
+        val currentIndex = player.currentMediaItemIndex
+        if (current == null || currentIndex < 0) {
+            startWave(seed)
+            return
+        }
+        scope.launch {
+            _ui.update { it.copy(loading = true, error = null) }
+            try {
+                val client = repo.api ?: error("Не выполнен вход")
+                val batch = if (seed != null) client.waveStart(seed) else client.waveStart()
+                val tracks = batch.tracks.filter { it.available && it.id != current.id }
+                if (tracks.isEmpty()) error("empty wave")
+                consecutiveErrors = 0
+                wave = WaveSession(batch.sessionId, batch.batchId)
+                player.shuffleModeEnabled = false
+                player.repeatMode = Player.REPEAT_MODE_OFF
+
+                val at = currentIndex + 1
+                if (player.mediaItemCount > at) {
+                    player.removeMediaItems(at, player.mediaItemCount)
+                }
+                player.addMediaItems(tracks.map(::mediaItem))
+
+                _ui.update {
+                    it.copy(
+                        queue = it.queue.take(at) + tracks,
+                        wave = true,
+                        loading = false,
+                    )
+                }
+                feedback(WaveEvent.RadioStarted, null)
+                rememberQueue()
+                Toasts.say("Моя волна начнётся после текущего трека")
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                _ui.update { it.copy(loading = false, error = "Не удалось запустить Мою волну") }
+            }
+        }
+    }
+
     /** Puts tracks right after the current one and leaves the rest of the queue as it was. */
     fun enqueueNext(tracks: List<Track>) {
         val playable = tracks.filter { it.available }

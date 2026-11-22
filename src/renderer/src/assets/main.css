@@ -2259,6 +2259,53 @@ html[data-platform='linux'] .sidebar {
 .picker-row:hover:not(:disabled) {
   background: var(--surface-hover);
 }
+
+/* Share dialog */
+.share-card {
+  gap: 16px;
+  width: min(420px, 100%);
+}
+.share-link-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--surface-hover);
+}
+.share-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.share-link-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgb(var(--accent));
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.share-alt-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.share-alt-btn:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-hover, var(--line));
+}
 .picker-name {
   display: flex;
   flex-direction: column;

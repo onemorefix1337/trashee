@@ -230,6 +230,7 @@ private fun MainShell() {
             ) { PlayerScreen() }
 
             nav.playlistTarget?.let { PlaylistPickerSheet(it) { nav.playlistTarget = null } }
+            nav.shareTarget?.let { ShareSheet(it) { nav.shareTarget = null } }
 
             // Last, so messages (and their buttons) are above the player too, not hidden behind it.
             SnackbarHost(

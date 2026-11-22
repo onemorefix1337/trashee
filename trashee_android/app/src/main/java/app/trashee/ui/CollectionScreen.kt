@@ -117,7 +117,7 @@ fun CollectionScreen(ref: CollectionRef, padding: PaddingValues) {
                                         app.repo.refreshLibrary()
                                     }
                                 }
-                                SecondaryButton("Поделиться") { shareCollection(context, data, ref) }
+                                SecondaryButton("Поделиться") { nav.shareTarget = ShareItem.CollectionItem(data.title, data.subtitle, ref) }
                             }
                         }
                     }
