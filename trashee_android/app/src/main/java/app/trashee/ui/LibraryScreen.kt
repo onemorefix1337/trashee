@@ -94,7 +94,7 @@ fun LibraryScreen(padding: PaddingValues) {
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalArrangement = Arrangement.spacedBy(18.dp),
                     ) {
-                        itemsIndexed(list, key = { _, p -> p.key }) { index, playlist ->
+                        itemsIndexed(list, key = { index, p -> "${p.key}#$index" }) { index, playlist ->
                             PlaylistCard(
                                 playlist.coverUri, playlist.title,
                                 "${trackWord(playlist.trackCount)}${if (playlist.mine || playlist.owner.isEmpty()) "" else " · ${playlist.owner}"}",

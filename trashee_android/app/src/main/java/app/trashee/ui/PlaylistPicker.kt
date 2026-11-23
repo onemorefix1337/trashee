@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -137,7 +138,7 @@ fun PlaylistPickerSheet(track: Track, onDismiss: () -> Unit) {
                 playlists == null -> Text("Загружаем плейлисты…", color = Palette.Muted, fontSize = 14.sp)
                 own.isEmpty() -> Text("Своих плейлистов пока нет, создай первый выше.", color = Palette.Muted, fontSize = 14.sp)
                 else -> LazyColumn(Modifier.heightIn(max = 320.dp)) {
-                    items(own, key = { it.key }) { info -> PlaylistChoice(info, enabled = !busy) {
+                    itemsIndexed(own, key = { index, info -> "${info.key}#$index" }) { _, info -> PlaylistChoice(info, enabled = !busy) {
                         val kind = (info.ref as CollectionRef.Playlist).kind ?: return@PlaylistChoice
                         busy = true
                         scope.launch {

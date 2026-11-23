@@ -109,7 +109,7 @@ fun WaveScreen(padding: PaddingValues) {
             item { Spacer(Modifier.height(20.dp)); SectionTitle("Закреплённое") }
             item {
                 LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                    itemsIndexed(pinned, key = { _, pin -> pin.key }) { index, pin ->
+                    itemsIndexed(pinned, key = { index, pin -> "${pin.key}#$index" }) { index, pin ->
                         CoverCard(
                             pin.coverUri, pin.title, pin.subtitle, round = pin.type == PinType.Artist,
                             modifier = Modifier.appear(index),
@@ -119,10 +119,10 @@ fun WaveScreen(padding: PaddingValues) {
             }
         }
 
-        val likedTracks = liked.orEmpty()
+        val likedTracks = liked.orEmpty().distinctBy { it.id }
         if (likedTracks.isNotEmpty()) {
             item { Spacer(Modifier.height(20.dp)); SectionTitle("Мне нравится") }
-            itemsIndexed(likedTracks.take(6), key = { _, t -> "liked-${t.id}" }) { index, track ->
+            itemsIndexed(likedTracks.take(6), key = { index, t -> "liked-${t.id}#$index" }) { index, track ->
                 TrackRow(
                     track, index,
                     active = ui.track?.id == track.id, playing = ui.playing,

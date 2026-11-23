@@ -140,7 +140,7 @@ fun CollectionScreen(ref: CollectionRef, padding: PaddingValues) {
                         item { Spacer(Modifier.height(12.dp)); SectionTitle("Альбомы и релизы") }
                         item {
                             LazyRow(contentPadding = PaddingValues(horizontal = 12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                                itemsIndexed(data.albums, key = { _, a -> a.id }) { index, album ->
+                                itemsIndexed(data.albums, key = { index, a -> "${a.id}#$index" }) { index, album ->
                                     CoverCard(
                                         album.coverUri, album.title,
                                         listOfNotNull(album.year?.toString(), album.kind).joinToString(" · "),
